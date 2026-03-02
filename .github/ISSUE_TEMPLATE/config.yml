@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Product Spec
+    url: https://github.com/chetangoel01/dossier/blob/main/docs/product-spec.md
+    about: Review the product spec before filing implementation issues.
+  - name: MVP Ticket Backlog
+    url: https://github.com/chetangoel01/dossier/blob/main/docs/mvp-tickets.md
+    about: Review the canonical backlog before creating or modifying issues.

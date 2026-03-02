@@ -1,0 +1,205 @@
+name: Daily Dossier Development
+
+on:
+  schedule:
+    # Staggered times across the week for organic feel (all UTC)
+    - cron: "30 14 * * 1" # Monday    ~9:30 AM ET
+    - cron: "0 17 * * 2"  # Tuesday   ~12:00 PM ET
+    - cron: "45 15 * * 3" # Wednesday ~10:45 AM ET
+    - cron: "15 18 * * 4" # Thursday  ~1:15 PM ET
+    - cron: "0 16 * * 5"  # Friday    ~11:00 AM ET
+    - cron: "30 19 * * 6" # Saturday  ~2:30 PM ET
+    - cron: "0 15 * * 0"  # Sunday    ~10:00 AM ET
+  workflow_dispatch:
+    inputs:
+      issue_count:
+        description: "Number of issues to pick (0 = random 1-2)"
+        required: false
+        default: "0"
+
+permissions:
+  contents: write
+  issues: write
+  pull-requests: write
+
+jobs:
+  pick-issues:
+    runs-on: ubuntu-latest
+    outputs:
+      issues: ${{ steps.pick.outputs.issues }}
+      count: ${{ steps.pick.outputs.count }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Pick eligible issues
+        id: pick
+        uses: actions/github-script@v7
+        env:
+          INPUT_ISSUE_COUNT: ${{ inputs.issue_count || '0' }}
+        with:
+          script: |
+            const pick = require('./.github/scripts/pick-issues.js');
+            await pick({ github, context, core });
+
+  implement:
+    needs: pick-issues
+    if: needs.pick-issues.outputs.count != '0'
+    runs-on: ubuntu-latest
+    strategy:
+      max-parallel: 1
+      matrix:
+        issue: ${{ fromJson(needs.pick-issues.outputs.issues) }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Install project dependencies
+        run: |
+          if [ -f package-lock.json ]; then
+            npm ci
+          elif [ -f package.json ]; then
+            npm install
+          fi
+
+      - name: Compute branch name
+        uses: actions/github-script@v7
+        id: branch
+        with:
+          script: |
+            const ticketId = '${{ matrix.issue.ticketId }}'.toLowerCase();
+            const title = '${{ matrix.issue.title }}'
+              .replace(/\[DOS-\d+\]\s*/, '')
+              .toLowerCase()
+              .replace(/[^a-z0-9]+/g, '-')
+              .replace(/^-|-$/g, '')
+              .slice(0, 40);
+            const branch = `${ticketId}-${title}`;
+            core.setOutput('name', branch);
+
+      - name: Create feature branch
+        env:
+          BRANCH_NAME: ${{ steps.branch.outputs.name }}
+        run: git checkout -b "$BRANCH_NAME"
+
+      - name: Label issue as in-progress
+        uses: actions/github-script@v7
+        with:
+          script: |
+            await github.rest.issues.addLabels({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: ${{ matrix.issue.number }},
+              labels: ['in-progress']
+            });
+
+      - name: Fetch full issue body
+        id: issue-body
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const { data } = await github.rest.issues.get({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: ${{ matrix.issue.number }}
+            });
+            // Write to file to avoid shell injection via body content
+            const fs = require('fs');
+            fs.writeFileSync('/tmp/issue-body.md', data.body || '');
+            core.setOutput('title', data.title);
+
+      - name: Implement with Claude Code
+        uses: anthropics/claude-code-action@beta
+        with:
+          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          prompt: |
+            You are implementing a GitHub issue for the Dossier project.
+
+            Read CLAUDE.md first for project context and conventions.
+            Read docs/product-spec.md for the full product specification.
+
+            ## Issue #${{ matrix.issue.number }}: ${{ matrix.issue.title }}
+
+            Read the file /tmp/issue-body.md for the full issue description.
+
+            ## Instructions
+
+            1. Read the existing codebase to understand what exists.
+            2. Implement exactly what the issue asks for — no more, no less.
+            3. Follow the code conventions in CLAUDE.md.
+            4. Follow the design direction in CLAUDE.md and docs/product-spec.md.
+            5. Run lint, typecheck, and tests if they exist. Fix any failures.
+            6. Make sure the app builds successfully.
+            7. Commit your changes with the message format: [${{ matrix.issue.ticketId }}] <short description>
+          allowed_tools: "Bash,Read,Write,Edit,Glob,Grep"
+          timeout_minutes: 30
+          model: "sonnet"
+
+      - name: Push branch and create PR
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          BRANCH_NAME: ${{ steps.branch.outputs.name }}
+          ISSUE_NUMBER: ${{ matrix.issue.number }}
+          TICKET_ID: ${{ matrix.issue.ticketId }}
+          ISSUE_TITLE: ${{ matrix.issue.title }}
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+          # Check if there are uncommitted changes
+          if [ -n "$(git status --porcelain)" ]; then
+            git add -A
+            git commit -m "[${TICKET_ID}] Implement ${TICKET_ID}"
+          fi
+
+          # Check if there are any commits beyond main
+          if git diff --quiet origin/main HEAD 2>/dev/null; then
+            echo "No changes from main. Skipping PR creation."
+            exit 0
+          fi
+
+          git push origin "$BRANCH_NAME"
+
+          PR_BODY=$(cat <<PREOF
+          ## Summary
+
+          Automated implementation of ${TICKET_ID}.
+
+          Closes #${ISSUE_NUMBER}
+
+          ## Validation
+
+          - [ ] Code builds successfully
+          - [ ] Lint passes
+          - [ ] Typecheck passes
+          - [ ] Tests pass (if applicable)
+          - [ ] Matches design direction from product spec
+          PREOF
+          )
+
+          gh pr create \
+            --title "${ISSUE_TITLE}" \
+            --body "$PR_BODY" \
+            --base main \
+            --head "$BRANCH_NAME"
+
+      - name: Remove in-progress label
+        if: always()
+        uses: actions/github-script@v7
+        with:
+          script: |
+            try {
+              await github.rest.issues.removeLabel({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: ${{ matrix.issue.number }},
+                name: 'in-progress'
+              });
+            } catch (e) {
+              // Label may not exist, that's fine
+            }
