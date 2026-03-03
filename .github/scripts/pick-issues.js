@@ -60,14 +60,30 @@ module.exports = async ({ github, context, core }) => {
   core.info(`Closed tickets: ${[...closedTickets].join(", ") || "none"}`);
 
   // Find eligible tickets: open, all dependencies closed, not already assigned
-  const eligible = [];
+  // DOS-FIX issues (from reviews) get highest priority — no dependency check needed
+  const fixes = [];
+  const features = [];
+
+  for (const issue of allIssues) {
+    if (issue.state === "closed") continue;
+    if (issue.assignee) continue;
+    const hasInProgressLabel = issue.labels.some(
+      (l) => l.name === "in-progress"
+    );
+    if (hasInProgressLabel) continue;
+
+    // DOS-FIX: always eligible, sorted by issue number
+    if (issue.title.match(/\[DOS-FIX\]/)) {
+      fixes.push({ ticketId: "DOS-FIX", issue });
+      continue;
+    }
+  }
+
   for (const [ticketId, depList] of Object.entries(deps)) {
     const issue = ticketMap[ticketId];
     if (!issue) continue;
     if (issue.state === "closed") continue;
     if (issue.assignee) continue;
-
-    // Check if issue already has an open PR
     const hasInProgressLabel = issue.labels.some(
       (l) => l.name === "in-progress"
     );
@@ -75,12 +91,21 @@ module.exports = async ({ github, context, core }) => {
 
     const allDepsMet = depList.every((dep) => closedTickets.has(dep));
     if (allDepsMet) {
-      eligible.push({ ticketId, issue });
+      features.push({ ticketId, issue });
     }
   }
 
+  // Fixes first (by issue number), then features in ticket order
+  fixes.sort((a, b) => a.issue.number - b.issue.number);
+  features.sort((a, b) => {
+    const numA = parseInt(a.ticketId.replace("DOS-", ""), 10);
+    const numB = parseInt(b.ticketId.replace("DOS-", ""), 10);
+    return numA - numB;
+  });
+  const eligible = [...fixes, ...features];
+
   core.info(
-    `Eligible tickets: ${eligible.map((e) => e.ticketId).join(", ") || "none"}`
+    `Eligible tickets: ${eligible.map((e) => `${e.ticketId}(#${e.issue.number})`).join(", ") || "none"}`
   );
 
   if (eligible.length === 0) {
@@ -89,13 +114,6 @@ module.exports = async ({ github, context, core }) => {
     core.setOutput("count", "0");
     return;
   }
-
-  // Sort by ticket number (lowest first = intended build order)
-  eligible.sort((a, b) => {
-    const numA = parseInt(a.ticketId.replace("DOS-", ""), 10);
-    const numB = parseInt(b.ticketId.replace("DOS-", ""), 10);
-    return numA - numB;
-  });
 
   // Determine how many issues to pick (1 or 2)
   const inputCount = parseInt(process.env.INPUT_ISSUE_COUNT || "0", 10);

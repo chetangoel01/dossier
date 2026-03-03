@@ -83,24 +83,34 @@ pick_issues() {
     });
 
     // Find eligible: open, deps met, not in-progress
-    const eligible = [];
+    const fixes = [];
+    const features = [];
     open.forEach(i => {
+      const inProgress = i.labels && i.labels.some(l => l.name === 'in-progress');
+      if (inProgress) return;
+
+      // DOS-FIX issues: always eligible, highest priority
+      if (i.title.match(/\[DOS-FIX\]/)) {
+        fixes.push({ number: i.number, ticketNum: -1 });
+        return;
+      }
+
       const m = i.title.match(/\[DOS-(\d+)\]/);
       if (!m) return;
       const tid = 'DOS-' + m[1];
       const num = parseInt(m[1], 10);
-      const inProgress = i.labels && i.labels.some(l => l.name === 'in-progress');
-      if (inProgress) return;
       const d = deps[tid] || [];
       if (d.every(dep => closedTickets.has(dep))) {
-        eligible.push({ number: i.number, ticketNum: num });
+        features.push({ number: i.number, ticketNum: num });
       }
     });
 
-    if (eligible.length === 0) { process.exit(0); }
+    // Fixes first (by issue number), then features in ticket order
+    fixes.sort((a, b) => a.number - b.number);
+    features.sort((a, b) => a.ticketNum - b.ticketNum);
+    const eligible = [...fixes, ...features];
 
-    // Sort by ticket number (lowest first = intended build order)
-    eligible.sort((a, b) => a.ticketNum - b.ticketNum);
+    if (eligible.length === 0) { process.exit(0); }
 
     // Pick count: explicit or default to 2
     let n = pickCount > 0 ? pickCount : Math.min(2, eligible.length);
