@@ -36,7 +36,43 @@ See the full [product spec](docs/product-spec.md) for details.
 
 ## Local Development
 
-> Setup instructions will be added after DOS-001 (project bootstrap) is implemented.
+### Prerequisites
+
+- Node.js 18.17 or later
+- npm
+
+### Setup
+
+```bash
+# Clone the repository
+git clone https://github.com/chetangoel/dossier.git
+cd dossier
+
+# Install dependencies
+npm install
+
+# Copy environment variables
+cp .env.example .env.local
+
+# Start the development server
+npm run dev
+```
+
+The app will be available at [http://localhost:3000](http://localhost:3000).
+
+### Scripts
+
+| Command | Description |
+|---------|-------------|
+| `npm run dev` | Start development server with Turbopack |
+| `npm run build` | Build for production |
+| `npm run start` | Start production server |
+| `npm run lint` | Run ESLint |
+| `npm run typecheck` | Run TypeScript type checking |
+| `npm run test` | Run tests with Vitest |
+| `npm run test:watch` | Run tests in watch mode |
+| `npm run format` | Format code with Prettier |
+| `npm run format:check` | Check code formatting |
 
 ## Project Documents
 
