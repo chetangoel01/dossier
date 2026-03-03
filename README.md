@@ -14,9 +14,7 @@ Dossier sits between a notes app, a lightweight case-management system, and an a
 
 ## Status
 
-This project is being built incrementally via automated daily development. Each day, 1-2 issues from the [MVP backlog](docs/mvp-tickets.md) are picked up and implemented by Claude Code.
-
-Track progress in [Issues](../../issues) and [Pull Requests](../../pulls).
+Building toward a 28-ticket MVP. Track progress in [Issues](../../issues) and [Pull Requests](../../pulls).
 
 ## Tech Stack
 
@@ -52,8 +50,8 @@ dossier/
 ├── docs/                    # Product spec and backlog
 ├── .github/
 │   ├── ISSUE_TEMPLATE/      # Issue templates
-│   ├── workflows/           # GitHub Actions (daily dev automation)
-│   └── scripts/             # Automation helpers
+│   ├── workflows/           # GitHub Actions
+│   └── scripts/             # Development helpers
 ├── src/                     # Application code (created by DOS-001)
 │   ├── app/                 # Next.js app router
 │   ├── components/          # React components

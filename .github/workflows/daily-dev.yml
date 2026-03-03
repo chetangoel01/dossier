@@ -1,10 +1,7 @@
-name: Daily Dossier Development (Manual)
+name: Implement Issue
 
-# This workflow exists as a fallback / manual trigger.
-# The primary automation runs locally via launchd + Claude Code CLI (subscription billing).
-#
-# To use this workflow, you need ANTHROPIC_API_KEY as a repo secret (API billing rates).
-# For daily use, prefer the local script: .github/scripts/daily-dev.sh
+# Manual trigger for implementing issues via GitHub Actions.
+# Requires ANTHROPIC_API_KEY as a repo secret.
 
 on:
   workflow_dispatch:
@@ -159,7 +156,7 @@ jobs:
           git push origin "$BRANCH_NAME"
 
           PR_BODY="## Summary
-          Automated implementation of ${TICKET_ID}.
+          Implementation of ${TICKET_ID}.
           Closes #${ISSUE_NUMBER}
 
           ## Validation

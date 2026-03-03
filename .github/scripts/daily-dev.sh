@@ -1,13 +1,10 @@
 #!/bin/bash
 set -euo pipefail
 
-# daily-dev.sh — Local daily development automation for Dossier
-#
-# Picks 1-2 eligible issues from the backlog, runs Claude Code locally
-# (using your subscription, not API billing), and opens PRs.
+# daily-dev.sh — Pick and implement the next issue(s) for Dossier
 #
 # Usage:
-#   ./daily-dev.sh              # random 1-2 issues
+#   ./daily-dev.sh              # next 1-2 issues
 #   ./daily-dev.sh --count 1    # exactly 1 issue
 #   ./daily-dev.sh --issue 5    # specific issue number
 
@@ -172,8 +169,7 @@ implement_issue() {
   body_file=$(mktemp)
   echo "$body" > "$body_file"
 
-  # Run Claude Code (uses local subscription, not API billing)
-  # Unset CLAUDECODE to allow spawning from within another session or automation
+  # Unset CLAUDECODE to allow spawning from within another session
   log "Running Claude Code..."
   local prompt
   prompt="You are implementing a GitHub issue for the Dossier project.
@@ -224,7 +220,7 @@ $(cat "$body_file")
     --title "$title" \
     --body "## Summary
 
-Automated implementation of ${ticket_id}.
+Implementation of ${ticket_id}.
 
 Closes #${issue_number}
 
@@ -325,12 +321,9 @@ Do NOT write any files. Only output the two sections described above."
     local review_file
     review_file=$(mktemp)
     cat > "$review_file" <<REVIEWEOF
-## Automated Code Review
+## Code Review
 
 ${review_comment}
-
----
-*Reviewed by Claude Code (local session)*
 REVIEWEOF
 
     gh pr comment "$pr_number" --repo "$REPO" --body-file "$review_file"
