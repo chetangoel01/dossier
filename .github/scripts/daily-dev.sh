@@ -208,7 +208,8 @@ $(cat "$body_file")
   log "Pushing branch and creating PR..."
   git push origin "$branch_name"
 
-  gh pr create \
+  local pr_url
+  pr_url=$(gh pr create \
     --repo "$REPO" \
     --title "$title" \
     --body "## Summary
@@ -225,12 +226,91 @@ Closes #${issue_number}
 - [ ] Tests pass (if applicable)
 - [ ] Matches design direction from product spec" \
     --base main \
-    --head "$branch_name"
+    --head "$branch_name")
+
+  log "PR created: $pr_url"
+
+  # ─── Code Review (separate Claude session) ──────────────────
+  log "Running code review..."
+  local pr_number
+  pr_number=$(echo "$pr_url" | grep -oE '[0-9]+$')
+
+  local diff
+  diff=$(git diff origin/main...HEAD)
+
+  local diff_file
+  diff_file=$(mktemp)
+  echo "$diff" > "$diff_file"
+
+  local review_prompt
+  review_prompt="You are reviewing a pull request for the Dossier project.
+
+Read CLAUDE.md for project conventions and design direction.
+Read docs/product-spec.md for the full product specification.
+
+## PR: ${title} (#${pr_number})
+## Issue: #${issue_number}
+
+Read the file ${body_file} for the original issue requirements.
+
+The diff is in ${diff_file}. Read it.
+
+## Review Instructions
+
+Review this implementation against:
+1. **Issue requirements** — Does it implement what the issue asked for? Anything missing? Anything extra?
+2. **CLAUDE.md conventions** — Naming, file organization, styling approach, TypeScript strictness.
+3. **Design direction** — Does the UI match the editorial intelligence desk aesthetic? Correct color tokens? Correct fonts?
+4. **Code quality** — Obvious bugs, security issues, missing error handling, dead code.
+5. **Build health** — If package.json exists, run npm run lint, npm run typecheck, npm run build. Report any failures.
+
+## Output Format
+
+Write your review as a structured markdown comment. Use this format:
+
+### Summary
+One paragraph: what was built, overall quality assessment.
+
+### Checklist
+- [ ] or [x] for: Meets issue requirements, Follows code conventions, Matches design direction, No obvious bugs, Build passes
+
+### Issues Found
+List any problems by severity (critical / warning / nit). If none, say 'No issues found.'
+
+### Suggestions
+Optional improvements that aren't blockers.
+
+Do NOT write any files. Only output your review text."
+
+  local review_output
+  review_output=$(env -u CLAUDECODE claude -p "$review_prompt" --allowedTools "Bash,Read,Glob,Grep" 2>&1) || true
+
+  rm -f "$diff_file"
+
+  # Post review as a PR comment
+  if [[ -n "$review_output" ]]; then
+    local review_file
+    review_file=$(mktemp)
+    cat > "$review_file" <<REVIEWEOF
+## Automated Code Review
+
+${review_output}
+
+---
+*Reviewed by Claude Code (local session)*
+REVIEWEOF
+
+    gh pr comment "$pr_number" --repo "$REPO" --body-file "$review_file"
+    rm -f "$review_file"
+    log "Review posted to PR #${pr_number}."
+  else
+    log "WARNING: Review produced no output."
+  fi
 
   # Remove in-progress label
   gh issue edit "$issue_number" --repo "$REPO" --remove-label "in-progress"
 
-  log "PR created for ${ticket_id}."
+  log "Done with ${ticket_id}."
 
   # Go back to main
   git checkout main
