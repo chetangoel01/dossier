@@ -142,9 +142,24 @@ implement_issue() {
 
   # Extract ticket ID
   local ticket_id
-  ticket_id=$(echo "$title" | grep -oE 'DOS-[0-9]+' | head -1)
+  ticket_id=$(echo "$title" | grep -oE 'DOS-[A-Z0-9]+' | head -1)
   local ticket_lower
   ticket_lower=$(echo "$ticket_id" | tr '[:upper:]' '[:lower:]')
+
+  # Determine conventional commit prefix from labels
+  local cc_prefix="feat"
+  local labels
+  labels=$(echo "$issue_json" | node -e "const d=JSON.parse(require('fs').readFileSync('/dev/stdin','utf8')); console.log(d.labels.map(l=>l.name).join(','))")
+  case "$labels" in
+    *bug*|*hardening*) cc_prefix="fix" ;;
+    *docs*)            cc_prefix="docs" ;;
+    *ui*|*design*)     cc_prefix="style" ;;
+  esac
+
+  # Build conventional commit title: feat(DOS-001): short description
+  local short_title
+  short_title=$(echo "$title" | sed 's/\[DOS-[A-Z0-9]*\] *//')
+  local cc_title="${cc_prefix}(${ticket_id}): ${short_title}"
 
   # Branch name
   local branch_slug
@@ -189,7 +204,7 @@ $(cat "$body_file")
 4. Follow the design direction in CLAUDE.md and docs/product-spec.md.
 5. If package.json exists, run: npm run lint, npm run typecheck, npm run test. Fix any failures.
 6. If package.json exists, make sure npm run build succeeds.
-7. Stage and commit all your changes with the message: [${ticket_id}] <short description of what you built>"
+7. Stage and commit all your changes with the message format: ${cc_prefix}(${ticket_id}): <short description of what you built>"
 
   env -u CLAUDECODE claude -p "$prompt" --allowedTools "Bash,Read,Write,Edit,Glob,Grep" 2>&1 | tee -a "$LOG_FILE" || true
 
@@ -207,7 +222,7 @@ $(cat "$body_file")
   # Commit any uncommitted changes
   if [[ -n "$(git status --porcelain)" ]]; then
     git add -A
-    git commit -m "[${ticket_id}] Implement ${title}"
+    git commit -m "${cc_title}"
   fi
 
   # Push and create PR
@@ -217,10 +232,10 @@ $(cat "$body_file")
   local pr_url
   pr_url=$(gh pr create \
     --repo "$REPO" \
-    --title "$title" \
+    --title "$cc_title" \
     --body "## Summary
 
-Implementation of ${ticket_id}.
+${cc_title}
 
 Closes #${issue_number}
 

@@ -127,7 +127,7 @@ jobs:
             4. Follow the design direction in CLAUDE.md and docs/product-spec.md.
             5. Run lint, typecheck, and tests if they exist. Fix any failures.
             6. Make sure the app builds successfully.
-            7. Commit your changes with the message format: [${{ matrix.issue.ticketId }}] <short description>
+            7. Commit your changes using Conventional Commits: feat(DOS-XXX): description, fix(DOS-XXX): description, style(DOS-XXX): description, or docs(DOS-XXX): description
           allowed_tools: "Bash,Read,Write,Edit,Glob,Grep"
           timeout_minutes: 30
           model: "sonnet"
@@ -145,7 +145,7 @@ jobs:
 
           if [ -n "$(git status --porcelain)" ]; then
             git add -A
-            git commit -m "[${TICKET_ID}] Implement ${TICKET_ID}"
+            git commit -m "feat(${TICKET_ID}): implement ${TICKET_ID}"
           fi
 
           if git diff --quiet origin/main HEAD 2>/dev/null; then

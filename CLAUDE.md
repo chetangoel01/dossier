@@ -136,6 +136,10 @@ When implementing a GitHub issue:
 ## Git Conventions
 
 - Branch naming: `dos-XXX-short-description` (e.g., `dos-001-bootstrap`)
-- Commit messages: `[DOS-XXX] Short description of change`
+- Commit messages use [Conventional Commits](https://www.conventionalcommits.org/):
+  - `feat(DOS-XXX): short description` — new feature work
+  - `fix(DOS-XXX): short description` — bug fixes and hardening
+  - `style(DOS-XXX): short description` — UI/design work
+  - `docs(DOS-XXX): short description` — documentation
 - One logical commit per issue when possible
 - Always create a PR — do not push directly to main
