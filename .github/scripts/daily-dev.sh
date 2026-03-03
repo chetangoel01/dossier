@@ -165,6 +165,7 @@ implement_issue() {
   echo "$body" > "$body_file"
 
   # Run Claude Code (uses local subscription, not API billing)
+  # Unset CLAUDECODE to allow spawning from within another session or automation
   log "Running Claude Code..."
   local prompt
   prompt="You are implementing a GitHub issue for the Dossier project.
@@ -186,7 +187,7 @@ $(cat "$body_file")
 6. If package.json exists, make sure npm run build succeeds.
 7. Stage and commit all your changes with the message: [${ticket_id}] <short description of what you built>"
 
-  claude -p "$prompt" --allowedTools "Bash,Read,Write,Edit,Glob,Grep" 2>&1 | tee -a "$LOG_FILE" || true
+  env -u CLAUDECODE claude -p "$prompt" --allowedTools "Bash,Read,Write,Edit,Glob,Grep" 2>&1 | tee -a "$LOG_FILE" || true
 
   rm -f "$body_file"
 
