@@ -266,7 +266,9 @@ Review this implementation against:
 
 ## Output Format
 
-Write your review as a structured markdown comment. Use this format:
+Your output MUST contain two sections separated by the exact delimiter line shown below.
+
+SECTION 1: The review comment in markdown.
 
 ### Summary
 One paragraph: what was built, overall quality assessment.
@@ -280,21 +282,42 @@ List any problems by severity (critical / warning / nit). If none, say 'No issue
 ### Suggestions
 Optional improvements that aren't blockers.
 
-Do NOT write any files. Only output your review text."
+Then output this exact delimiter line:
+
+---FOLLOW_UP_ISSUES_JSON---
+
+SECTION 2: A JSON array of follow-up issues for any warnings or critical issues found.
+Only create issues for concrete, actionable problems — NOT for nits or nice-to-haves.
+Each issue object must have: title (string), body (string), labels (array of strings).
+The title must start with [DOS-FIX] and reference the original ticket.
+If there are no actionable issues, output an empty array: []
+
+Example:
+[{\"title\": \"[DOS-FIX] Wire up globals.css import in layout.tsx (from DOS-001 review)\", \"body\": \"## Summary\nThe globals.css file exists but is not imported in layout.tsx, so the CSS reset is not applied.\n\n## Fix\nAdd import in layout.tsx.\n\n## Found During\nReview of #29 (DOS-001)\", \"labels\": [\"bug\", \"mvp\"]}]
+
+Do NOT write any files. Only output the two sections described above."
 
   local review_output
   review_output=$(env -u CLAUDECODE claude -p "$review_prompt" --allowedTools "Bash,Read,Glob,Grep" 2>&1) || true
 
   rm -f "$diff_file"
 
-  # Post review as a PR comment
-  if [[ -n "$review_output" ]]; then
+  if [[ -z "$review_output" ]]; then
+    log "WARNING: Review produced no output."
+  else
+    # Split output on the delimiter
+    local review_comment
+    local follow_up_json
+    review_comment=$(echo "$review_output" | sed -n '/---FOLLOW_UP_ISSUES_JSON---/q;p')
+    follow_up_json=$(echo "$review_output" | sed -n '/---FOLLOW_UP_ISSUES_JSON---/,$ { /---FOLLOW_UP_ISSUES_JSON---/d; p; }')
+
+    # Post review as a PR comment
     local review_file
     review_file=$(mktemp)
     cat > "$review_file" <<REVIEWEOF
 ## Automated Code Review
 
-${review_output}
+${review_comment}
 
 ---
 *Reviewed by Claude Code (local session)*
@@ -303,8 +326,52 @@ REVIEWEOF
     gh pr comment "$pr_number" --repo "$REPO" --body-file "$review_file"
     rm -f "$review_file"
     log "Review posted to PR #${pr_number}."
-  else
-    log "WARNING: Review produced no output."
+
+    # Create follow-up issues from review findings
+    if [[ -n "$follow_up_json" ]]; then
+      # Extract the JSON array (strip any surrounding text)
+      local clean_json
+      clean_json=$(echo "$follow_up_json" | grep -oE '\[.*\]' | head -1)
+
+      if [[ -n "$clean_json" && "$clean_json" != "[]" ]]; then
+        local issue_count
+        issue_count=$(echo "$clean_json" | node -e "
+          const json = JSON.parse(require('fs').readFileSync('/dev/stdin','utf8'));
+          console.log(json.length);
+        " 2>/dev/null) || issue_count=0
+
+        if [[ "$issue_count" -gt 0 ]]; then
+          log "Creating ${issue_count} follow-up issue(s) from review..."
+          echo "$clean_json" | node -e "
+            const json = JSON.parse(require('fs').readFileSync('/dev/stdin','utf8'));
+            json.forEach((issue, i) => {
+              console.log(JSON.stringify(issue));
+            });
+          " | while IFS= read -r issue_line; do
+            local fu_title fu_body fu_labels
+            fu_title=$(echo "$issue_line" | node -e "const d=JSON.parse(require('fs').readFileSync('/dev/stdin','utf8')); console.log(d.title)")
+            fu_body=$(echo "$issue_line" | node -e "const d=JSON.parse(require('fs').readFileSync('/dev/stdin','utf8')); console.log(d.body)")
+            fu_labels=$(echo "$issue_line" | node -e "const d=JSON.parse(require('fs').readFileSync('/dev/stdin','utf8')); console.log(d.labels.join(','))")
+
+            local fu_body_file
+            fu_body_file=$(mktemp)
+            echo "$fu_body" > "$fu_body_file"
+
+            local fu_url
+            fu_url=$(gh issue create --repo "$REPO" \
+              --title "$fu_title" \
+              --label "$fu_labels" \
+              --body-file "$fu_body_file")
+            rm -f "$fu_body_file"
+            log "Follow-up issue created: $fu_url"
+          done
+        else
+          log "Review clean — no follow-up issues needed."
+        fi
+      else
+        log "Review clean — no follow-up issues needed."
+      fi
+    fi
   fi
 
   # Remove in-progress label
