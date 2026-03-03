@@ -88,27 +88,25 @@ pick_issues() {
       const m = i.title.match(/\[DOS-(\d+)\]/);
       if (!m) return;
       const tid = 'DOS-' + m[1];
+      const num = parseInt(m[1], 10);
       const inProgress = i.labels && i.labels.some(l => l.name === 'in-progress');
       if (inProgress) return;
       const d = deps[tid] || [];
       if (d.every(dep => closedTickets.has(dep))) {
-        eligible.push(i.number);
+        eligible.push({ number: i.number, ticketNum: num });
       }
     });
 
     if (eligible.length === 0) { process.exit(0); }
 
-    // Shuffle
-    for (let i = eligible.length - 1; i > 0; i--) {
-      const j = Math.floor(Math.random() * (i + 1));
-      [eligible[i], eligible[j]] = [eligible[j], eligible[i]];
-    }
+    // Sort by ticket number (lowest first = intended build order)
+    eligible.sort((a, b) => a.ticketNum - b.ticketNum);
 
-    // Pick count
-    let n = pickCount > 0 ? pickCount : (Math.random() < 0.6 ? 1 : 2);
+    // Pick count: explicit or default to 2
+    let n = pickCount > 0 ? pickCount : Math.min(2, eligible.length);
     n = Math.min(n, eligible.length);
 
-    console.log(eligible.slice(0, n).join(' '));
+    console.log(eligible.slice(0, n).map(e => e.number).join(' '));
   " "$open_issues" "$closed_issues" "$PICK_COUNT"
 }
 

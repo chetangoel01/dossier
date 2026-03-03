@@ -3,7 +3,8 @@
 // Runs in GitHub Actions via actions/github-script.
 //
 // Reads the dependency graph from deps.json, checks which issues are already
-// closed, and returns 1-2 eligible issues whose dependencies are all met.
+// closed, and returns the next 1-2 eligible issues in ticket order.
+// Selection is sequential (lowest ticket number first), not random.
 
 const fs = require("fs");
 const path = require("path");
@@ -89,19 +90,26 @@ module.exports = async ({ github, context, core }) => {
     return;
   }
 
+  // Sort by ticket number (lowest first = intended build order)
+  eligible.sort((a, b) => {
+    const numA = parseInt(a.ticketId.replace("DOS-", ""), 10);
+    const numB = parseInt(b.ticketId.replace("DOS-", ""), 10);
+    return numA - numB;
+  });
+
   // Determine how many issues to pick (1 or 2)
   const inputCount = parseInt(process.env.INPUT_ISSUE_COUNT || "0", 10);
   let pickCount;
   if (inputCount > 0) {
     pickCount = Math.min(inputCount, eligible.length);
   } else {
-    // Random: 60% chance of 1, 40% chance of 2
-    pickCount = Math.random() < 0.6 ? 1 : Math.min(2, eligible.length);
+    // Default: pick 1, but pick 2 if the next two share the same "day"
+    // in the backlog (e.g., DOS-001 + DOS-002 are both Day 1)
+    pickCount = Math.min(2, eligible.length);
   }
 
-  // Shuffle and pick
-  const shuffled = eligible.sort(() => Math.random() - 0.5);
-  const picked = shuffled.slice(0, pickCount);
+  // Take the first N in order
+  const picked = eligible.slice(0, pickCount);
 
   const result = picked.map((p) => ({
     number: p.issue.number,
