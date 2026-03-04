@@ -1,7 +1,368 @@
+@import "tailwindcss";
+
+/* ============================================================
+   DESIGN TOKENS — all color, type, spacing, and motion values
+   ============================================================ */
+
+@theme {
+  /* Fonts */
+  --font-display: "Newsreader", Georgia, serif;
+  --font-sans: "IBM Plex Sans", system-ui, sans-serif;
+  --font-mono: "IBM Plex Mono", "Menlo", monospace;
+
+  /* Color palette */
+  --color-bg-canvas: #f4f1ea;
+  --color-bg-panel: #fbf8f2;
+  --color-bg-rail: #e8e1d4;
+  --color-bg-selected: #eee6d8;
+  --color-bg-command: rgba(251, 248, 242, 0.88);
+
+  --color-border: #d8d1c4;
+
+  --color-ink-primary: #1f2933;
+  --color-ink-secondary: #52606d;
+
+  --color-accent-ink: #184e77;
+  --color-accent-alert: #8b3a3a;
+  --color-accent-success: #2d6a4f;
+  --color-accent-warning: #9c6b00;
+
+  --color-chip-citation: #e0ebf5;
+  --color-highlight-wash: rgba(24, 78, 119, 0.12);
+
+  /* Border radius */
+  --radius-xs: 2px;
+  --radius-sm: 4px;
+  --radius-md: 6px;
+  --radius-lg: 10px;
+
+  /* Border widths */
+  --border-hairline: 0.5px;
+  --border-thin: 1px;
+  --border-rule: 2px;
+
+  /* Spacing scale (supplements Tailwind's default) */
+  --space-gutter: 1.5rem;
+  --space-rail-width: 220px;
+  --space-inspector-width: 340px;
+  --space-content-max: 760px;
+
+  /* Shadows */
+  --shadow-panel: 0 1px 3px rgba(31, 41, 51, 0.08), 0 0 0 1px var(--color-border);
+  --shadow-float: 0 4px 16px rgba(31, 41, 51, 0.12), 0 0 0 1px var(--color-border);
+
+  /* Animation durations */
+  --duration-fast: 120ms;
+  --duration-base: 180ms;
+  --duration-slow: 240ms;
+
+  /* Texture */
+  --texture-grain-opacity: 0.035;
+}
+
+/* ============================================================
+   GLOBAL RESET — keep browser defaults minimal
+   ============================================================ */
+
 *,
 *::before,
 *::after {
   box-sizing: border-box;
   margin: 0;
   padding: 0;
+}
+
+html {
+  font-size: 16px;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+}
+
+body {
+  font-family: var(--font-sans);
+  font-size: 0.9375rem;
+  line-height: 1.6;
+  color: var(--color-ink-primary);
+  background-color: var(--color-bg-canvas);
+  min-height: 100dvh;
+
+  /* Paper grain texture via CSS noise — no image asset */
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='300' height='300'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.75' numOctaves='4' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='300' height='300' filter='url(%23noise)' opacity='0.035'/%3E%3C/svg%3E");
+  background-repeat: repeat;
+}
+
+/* ============================================================
+   TYPOGRAPHY BASE
+   ============================================================ */
+
+h1, h2, h3, h4, h5, h6 {
+  font-family: var(--font-display);
+  font-weight: 600;
+  line-height: 1.2;
+  color: var(--color-ink-primary);
+  letter-spacing: -0.01em;
+}
+
+h1 { font-size: 2rem; }
+h2 { font-size: 1.5rem; }
+h3 { font-size: 1.25rem; }
+h4 { font-size: 1.0625rem; }
+h5 { font-size: 0.9375rem; }
+h6 { font-size: 0.875rem; }
+
+p {
+  color: var(--color-ink-secondary);
+  max-width: 68ch;
+}
+
+code, kbd, pre, samp {
+  font-family: var(--font-mono);
+  font-size: 0.875em;
+}
+
+a {
+  color: var(--color-accent-ink);
+  text-decoration: none;
+}
+
+a:hover {
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+/* ============================================================
+   BASE COMPONENT STYLES
+   ============================================================ */
+
+/* ------ Buttons ------ */
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  padding: 0.375rem 0.875rem;
+  border-radius: var(--radius-sm);
+  font-family: var(--font-sans);
+  font-size: 0.875rem;
+  font-weight: 500;
+  line-height: 1.4;
+  cursor: pointer;
+  transition:
+    background-color var(--duration-fast) ease,
+    border-color var(--duration-fast) ease,
+    color var(--duration-fast) ease;
+  border: var(--border-thin) solid transparent;
+  white-space: nowrap;
+}
+
+.btn:focus-visible {
+  outline: 2px solid var(--color-accent-ink);
+  outline-offset: 2px;
+}
+
+.btn-primary {
+  background-color: var(--color-accent-ink);
+  color: var(--color-bg-panel);
+  border-color: var(--color-accent-ink);
+}
+
+.btn-primary:hover {
+  background-color: #1a5c8a;
+  border-color: #1a5c8a;
+}
+
+.btn-secondary {
+  background-color: transparent;
+  color: var(--color-ink-primary);
+  border-color: var(--color-border);
+  background-color: var(--color-bg-panel);
+}
+
+.btn-secondary:hover {
+  background-color: var(--color-bg-selected);
+  border-color: #c0b8a8;
+}
+
+.btn-ghost {
+  background-color: transparent;
+  color: var(--color-ink-secondary);
+  border-color: transparent;
+}
+
+.btn-ghost:hover {
+  background-color: var(--color-bg-selected);
+  color: var(--color-ink-primary);
+}
+
+.btn-danger {
+  background-color: transparent;
+  color: var(--color-accent-alert);
+  border-color: var(--color-accent-alert);
+}
+
+.btn-danger:hover {
+  background-color: var(--color-accent-alert);
+  color: var(--color-bg-panel);
+}
+
+/* ------ Inputs ------ */
+
+.input {
+  display: block;
+  width: 100%;
+  padding: 0.375rem 0.75rem;
+  font-family: var(--font-sans);
+  font-size: 0.875rem;
+  line-height: 1.5;
+  color: var(--color-ink-primary);
+  background-color: var(--color-bg-panel);
+  border: var(--border-thin) solid var(--color-border);
+  border-radius: var(--radius-sm);
+  transition:
+    border-color var(--duration-fast) ease,
+    box-shadow var(--duration-fast) ease;
+}
+
+.input::placeholder {
+  color: var(--color-ink-secondary);
+  opacity: 0.6;
+}
+
+.input:focus {
+  outline: none;
+  border-color: var(--color-accent-ink);
+  box-shadow: 0 0 0 2px var(--color-highlight-wash);
+}
+
+textarea.input {
+  resize: vertical;
+  min-height: 5rem;
+}
+
+/* ------ Panels ------ */
+
+.panel {
+  background-color: var(--color-bg-panel);
+  border: var(--border-thin) solid var(--color-border);
+  border-radius: var(--radius-md);
+}
+
+.panel-raised {
+  background-color: var(--color-bg-panel);
+  border: var(--border-thin) solid var(--color-border);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-panel);
+}
+
+/* ------ Chips ------ */
+
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0.125rem 0.5rem;
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  line-height: 1.5;
+  border-radius: var(--radius-xs);
+  border: var(--border-thin) solid var(--color-border);
+  background-color: var(--color-bg-selected);
+  color: var(--color-ink-secondary);
+  white-space: nowrap;
+}
+
+.chip-citation {
+  background-color: var(--color-chip-citation);
+  border-color: #b8d3ea;
+  color: var(--color-accent-ink);
+}
+
+.chip-success {
+  background-color: #d8f0e6;
+  border-color: #9dd4be;
+  color: var(--color-accent-success);
+}
+
+.chip-alert {
+  background-color: #f0dede;
+  border-color: #d4a8a8;
+  color: var(--color-accent-alert);
+}
+
+.chip-warning {
+  background-color: #f5ead8;
+  border-color: #d4bd8c;
+  color: var(--color-accent-warning);
+}
+
+/* ------ Tables ------ */
+
+.data-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.875rem;
+}
+
+.data-table thead {
+  background-color: var(--color-bg-rail);
+  border-bottom: var(--border-thin) solid var(--color-border);
+}
+
+.data-table th {
+  padding: 0.5rem 0.875rem;
+  text-align: left;
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--color-ink-secondary);
+  white-space: nowrap;
+}
+
+.data-table td {
+  padding: 0.625rem 0.875rem;
+  color: var(--color-ink-primary);
+  border-bottom: var(--border-hairline) solid var(--color-border);
+  vertical-align: top;
+}
+
+.data-table tbody tr:hover {
+  background-color: var(--color-bg-selected);
+}
+
+.data-table tbody tr:last-child td {
+  border-bottom: none;
+}
+
+/* ============================================================
+   UTILITY CLASSES — thin layer for one-off needs
+   ============================================================ */
+
+.text-display {
+  font-family: var(--font-display);
+}
+
+.text-mono {
+  font-family: var(--font-mono);
+}
+
+.text-muted {
+  color: var(--color-ink-secondary);
+}
+
+.text-accent {
+  color: var(--color-accent-ink);
+}
+
+.rule-left {
+  border-left: var(--border-rule) solid var(--color-accent-ink);
+  padding-left: 0.875rem;
+}
+
+.divider {
+  height: var(--border-thin);
+  background-color: var(--color-border);
+  border: none;
 }

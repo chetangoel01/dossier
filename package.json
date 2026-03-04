@@ -14,9 +14,12 @@
     "format:check": "prettier --check \"src/**/*.{ts,tsx,js,jsx,json,css}\""
   },
   "dependencies": {
+    "@tailwindcss/postcss": "^4.2.1",
     "next": "15.5.12",
+    "postcss": "^8.5.8",
     "react": "19.1.0",
-    "react-dom": "19.1.0"
+    "react-dom": "19.1.0",
+    "tailwindcss": "^4.2.1"
   },
   "devDependencies": {
     "@eslint/eslintrc": "^3",
