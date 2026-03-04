@@ -1,0 +1,338 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// ─── Enums ───────────────────────────────────────────────────────────────────
+
+enum DossierStatus {
+  active
+  archived
+  on_hold
+}
+
+enum SourceType {
+  web_link
+  pdf
+  pasted_text
+  manual_note
+  internal_memo
+}
+
+enum SourceStatus {
+  unreviewed
+  reviewing
+  reviewed
+  discarded
+}
+
+enum HighlightLabel {
+  evidence
+  question
+  counterpoint
+  stat
+  quote
+}
+
+enum ClaimStatus {
+  open
+  supported
+  contested
+  deprecated
+}
+
+enum EntityType {
+  person
+  company
+  product
+  location
+  institution
+  topic
+}
+
+enum EventPrecision {
+  day
+  month
+  year
+  unknown
+}
+
+enum BriefStatus {
+  draft
+  ready
+  published
+}
+
+// ─── Models ──────────────────────────────────────────────────────────────────
+
+model User {
+  id         String    @id @default(cuid())
+  email      String    @unique
+  name       String?
+  created_at DateTime  @default(now())
+  updated_at DateTime  @updatedAt
+
+  dossiers Dossier[]
+
+  @@map("users")
+}
+
+model Dossier {
+  id            String        @id @default(cuid())
+  title         String
+  slug          String
+  summary       String?
+  status        DossierStatus @default(active)
+  research_goal String?
+  priority      Int?
+  owner_id      String
+  created_at    DateTime      @default(now())
+  updated_at    DateTime      @updatedAt
+
+  owner    User     @relation(fields: [owner_id], references: [id], onDelete: Cascade)
+  sources  Source[]
+  claims   Claim[]
+  entities Entity[]
+  events   Event[]
+  brief    Brief?
+
+  @@unique([owner_id, slug])
+  @@map("dossiers")
+}
+
+model Source {
+  id                 String       @id @default(cuid())
+  dossier_id         String
+  type               SourceType
+  title              String
+  url                String?
+  author             String?
+  publisher          String?
+  published_at       DateTime?
+  captured_at        DateTime     @default(now())
+  raw_text           String?
+  summary            String?
+  credibility_rating Int?
+  source_status      SourceStatus @default(unreviewed)
+  created_at         DateTime     @default(now())
+  updated_at         DateTime     @updatedAt
+
+  dossier    Dossier       @relation(fields: [dossier_id], references: [id], onDelete: Cascade)
+  highlights Highlight[]
+  mentions   Mention[]
+  tags       TagOnSource[]
+
+  @@map("sources")
+}
+
+model Highlight {
+  id           String         @id @default(cuid())
+  source_id    String
+  quote_text   String
+  start_offset Int
+  end_offset   Int
+  page_number  Int?
+  annotation   String?
+  label        HighlightLabel @default(evidence)
+  created_at   DateTime       @default(now())
+
+  source   Source           @relation(fields: [source_id], references: [id], onDelete: Cascade)
+  claims   ClaimHighlight[]
+  events   EventHighlight[]
+  mentions Mention[]
+
+  @@map("highlights")
+}
+
+model Claim {
+  id         String      @id @default(cuid())
+  dossier_id String
+  statement  String
+  confidence Int?
+  status     ClaimStatus @default(open)
+  notes      String?
+  created_at DateTime    @default(now())
+  updated_at DateTime    @updatedAt
+
+  dossier    Dossier          @relation(fields: [dossier_id], references: [id], onDelete: Cascade)
+  highlights ClaimHighlight[]
+  entities   ClaimEntity[]
+  events     Event[]
+  tags       TagOnClaim[]
+
+  @@map("claims")
+}
+
+model ClaimHighlight {
+  claim_id     String
+  highlight_id String
+
+  claim     Claim     @relation(fields: [claim_id], references: [id], onDelete: Cascade)
+  highlight Highlight @relation(fields: [highlight_id], references: [id], onDelete: Cascade)
+
+  @@id([claim_id, highlight_id])
+  @@map("claim_highlights")
+}
+
+model Entity {
+  id          String     @id @default(cuid())
+  dossier_id  String
+  name        String
+  type        EntityType
+  description String?
+  aliases     String[]
+  importance  Int?
+  created_at  DateTime   @default(now())
+  updated_at  DateTime   @updatedAt
+
+  dossier  Dossier       @relation(fields: [dossier_id], references: [id], onDelete: Cascade)
+  mentions Mention[]
+  claims   ClaimEntity[]
+  events   EventEntity[]
+  tags     TagOnEntity[]
+
+  @@map("entities")
+}
+
+model ClaimEntity {
+  claim_id  String
+  entity_id String
+
+  claim  Claim  @relation(fields: [claim_id], references: [id], onDelete: Cascade)
+  entity Entity @relation(fields: [entity_id], references: [id], onDelete: Cascade)
+
+  @@id([claim_id, entity_id])
+  @@map("claim_entities")
+}
+
+model Mention {
+  id              String  @id @default(cuid())
+  entity_id       String
+  source_id       String?
+  highlight_id    String?
+  context_snippet String?
+
+  entity    Entity     @relation(fields: [entity_id], references: [id], onDelete: Cascade)
+  source    Source?    @relation(fields: [source_id], references: [id], onDelete: Cascade)
+  highlight Highlight? @relation(fields: [highlight_id], references: [id], onDelete: Cascade)
+
+  @@map("mentions")
+}
+
+model Event {
+  id          String         @id @default(cuid())
+  dossier_id  String
+  title       String
+  description String?
+  event_date  DateTime?
+  precision   EventPrecision @default(unknown)
+  confidence  Int?
+  claim_id    String?
+  created_at  DateTime       @default(now())
+  updated_at  DateTime       @updatedAt
+
+  dossier    Dossier          @relation(fields: [dossier_id], references: [id], onDelete: Cascade)
+  claim      Claim?           @relation(fields: [claim_id], references: [id], onDelete: SetNull)
+  highlights EventHighlight[]
+  entities   EventEntity[]
+  tags       TagOnEvent[]
+
+  @@map("events")
+}
+
+model EventHighlight {
+  event_id     String
+  highlight_id String
+
+  event     Event     @relation(fields: [event_id], references: [id], onDelete: Cascade)
+  highlight Highlight @relation(fields: [highlight_id], references: [id], onDelete: Cascade)
+
+  @@id([event_id, highlight_id])
+  @@map("event_highlights")
+}
+
+model EventEntity {
+  event_id  String
+  entity_id String
+
+  event  Event  @relation(fields: [event_id], references: [id], onDelete: Cascade)
+  entity Entity @relation(fields: [entity_id], references: [id], onDelete: Cascade)
+
+  @@id([event_id, entity_id])
+  @@map("event_entities")
+}
+
+model Brief {
+  id            String      @id @default(cuid())
+  dossier_id    String      @unique
+  title         String
+  body_markdown String?
+  version       Int         @default(1)
+  status        BriefStatus @default(draft)
+  created_at    DateTime    @default(now())
+  updated_at    DateTime    @updatedAt
+
+  dossier Dossier @relation(fields: [dossier_id], references: [id], onDelete: Cascade)
+
+  @@map("briefs")
+}
+
+model Tag {
+  id         String   @id @default(cuid())
+  name       String   @unique
+  created_at DateTime @default(now())
+
+  sources  TagOnSource[]
+  claims   TagOnClaim[]
+  entities TagOnEntity[]
+  events   TagOnEvent[]
+
+  @@map("tags")
+}
+
+model TagOnSource {
+  tag_id    String
+  source_id String
+
+  tag    Tag    @relation(fields: [tag_id], references: [id], onDelete: Cascade)
+  source Source @relation(fields: [source_id], references: [id], onDelete: Cascade)
+
+  @@id([tag_id, source_id])
+  @@map("tags_on_sources")
+}
+
+model TagOnClaim {
+  tag_id   String
+  claim_id String
+
+  tag   Tag   @relation(fields: [tag_id], references: [id], onDelete: Cascade)
+  claim Claim @relation(fields: [claim_id], references: [id], onDelete: Cascade)
+
+  @@id([tag_id, claim_id])
+  @@map("tags_on_claims")
+}
+
+model TagOnEntity {
+  tag_id    String
+  entity_id String
+
+  tag    Tag    @relation(fields: [tag_id], references: [id], onDelete: Cascade)
+  entity Entity @relation(fields: [entity_id], references: [id], onDelete: Cascade)
+
+  @@id([tag_id, entity_id])
+  @@map("tags_on_entities")
+}
+
+model TagOnEvent {
+  tag_id   String
+  event_id String
+
+  tag   Tag   @relation(fields: [tag_id], references: [id], onDelete: Cascade)
+  event Event @relation(fields: [event_id], references: [id], onDelete: Cascade)
+
+  @@id([tag_id, event_id])
+  @@map("tags_on_events")
+}
