@@ -1,0 +1,11 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(git:*)",
+      "mcp__github__list_issues",
+      "mcp__github__list_pull_requests",
+      "Bash(command:*)",
+      "Bash(/bin/bash:*)"
+    ]
+  }
+}
