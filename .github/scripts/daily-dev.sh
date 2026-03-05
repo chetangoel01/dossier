@@ -174,10 +174,17 @@ implement_issue() {
   # Create branch from latest main
   git checkout main
   git pull origin main
+  if git show-ref --verify --quiet "refs/heads/$branch_name"; then
+    log "WARNING: Branch $branch_name already exists. Deleting and recreating."
+    git branch -D "$branch_name"
+  fi
   git checkout -b "$branch_name"
 
   # Label as in-progress
   gh issue edit "$issue_number" --repo "$REPO" --add-label "in-progress"
+
+  # Cleanup trap — fires on SIGINT/SIGTERM so label and branch don't get stuck
+  trap "log 'Interrupted during ${ticket_id}. Cleaning up.'; git checkout main 2>/dev/null || true; git branch -D '${branch_name}' 2>/dev/null || true; gh issue edit '${issue_number}' --repo '${REPO}' --remove-label 'in-progress' 2>/dev/null || true; trap - INT TERM" INT TERM
 
   # Write issue body to a temp file (avoids shell escaping issues)
   local body_file
@@ -206,9 +213,7 @@ $(cat "$body_file")
 6. If package.json exists, make sure npm run build succeeds.
 7. Stage and commit all your changes with the message format: ${cc_prefix}(${ticket_id}): <short description of what you built>"
 
-  env -u CLAUDECODE claude -p "$prompt" --allowedTools "Bash,Read,Write,Edit,Glob,Grep" 2>&1 | tee -a "$LOG_FILE" || true
-
-  rm -f "$body_file"
+  env -u CLAUDECODE /Users/chetangoel/.local/bin/claude -p "$prompt" --allowedTools "Bash,Read,Write,Edit,Glob,Grep" 2>&1 | tee -a "$LOG_FILE" || true
 
   # Check if there are changes
   if [[ -z "$(git status --porcelain)" && -z "$(git log origin/main..HEAD --oneline 2>/dev/null)" ]]; then
@@ -319,9 +324,10 @@ Example:
 Do NOT write any files. Only output the two sections described above."
 
   local review_output
-  review_output=$(env -u CLAUDECODE claude -p "$review_prompt" --allowedTools "Bash,Read,Glob,Grep" 2>&1) || true
+  review_output=$(env -u CLAUDECODE /Users/chetangoel/.local/bin/claude -p "$review_prompt" --allowedTools "Bash,Read,Glob,Grep" 2>&1) || true
 
   rm -f "$diff_file"
+  rm -f "$body_file"
 
   if [[ -z "$review_output" ]]; then
     log "WARNING: Review produced no output."
@@ -347,9 +353,13 @@ REVIEWEOF
 
     # Create follow-up issues from review findings
     if [[ -n "$follow_up_json" ]]; then
-      # Extract the JSON array (strip any surrounding text)
+      # Extract the JSON array — use node to handle multiline JSON correctly
       local clean_json
-      clean_json=$(echo "$follow_up_json" | grep -oE '\[.*\]' | head -1)
+      clean_json=$(echo "$follow_up_json" | node -e "
+        const input = require('fs').readFileSync('/dev/stdin','utf8');
+        const match = input.match(/(\[[\s\S]*\])/);
+        if (match) { try { JSON.parse(match[1]); process.stdout.write(match[1]); } catch(e) {} }
+      " 2>/dev/null) || clean_json=""
 
       if [[ -n "$clean_json" && "$clean_json" != "[]" ]]; then
         local issue_count
@@ -392,7 +402,8 @@ REVIEWEOF
     fi
   fi
 
-  # Remove in-progress label
+  # Remove in-progress label and clear the cleanup trap
+  trap - INT TERM
   gh issue edit "$issue_number" --repo "$REPO" --remove-label "in-progress"
 
   log "Done with ${ticket_id}."
