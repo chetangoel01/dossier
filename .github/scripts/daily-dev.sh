@@ -21,13 +21,22 @@ log() { echo "[$(date '+%H:%M:%S')] $*" | tee -a "$LOG_FILE"; }
 # Parse arguments
 PICK_COUNT=0  # 0 = random
 SPECIFIC_ISSUE=""
+COMMIT_DATE=""
 while [[ $# -gt 0 ]]; do
   case $1 in
     --count) PICK_COUNT="$2"; shift 2 ;;
     --issue) SPECIFIC_ISSUE="$2"; shift 2 ;;
+    --date)  COMMIT_DATE="$2"; shift 2 ;;
     *) echo "Unknown arg: $1"; exit 1 ;;
   esac
 done
+
+# If --date was provided, export backdated commit timestamps
+if [[ -n "$COMMIT_DATE" ]]; then
+  export GIT_AUTHOR_DATE="${COMMIT_DATE}T09:00:00"
+  export GIT_COMMITTER_DATE="${COMMIT_DATE}T09:00:00"
+  log "Commit date overridden to: ${COMMIT_DATE}"
+fi
 
 cd "$REPO_DIR"
 
