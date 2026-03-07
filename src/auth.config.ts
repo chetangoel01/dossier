@@ -24,6 +24,16 @@ export const authConfig: NextAuthConfig = {
 
       if (isPublicRoute) return true;
 
+      const isProtectedApiRoute =
+        pathname.startsWith("/api/") && !isApiAuthRoute;
+
+      if (isProtectedApiRoute && !isLoggedIn) {
+        return new Response(JSON.stringify({ error: "Unauthorized" }), {
+          status: 401,
+          headers: { "Content-Type": "application/json" },
+        });
+      }
+
       if (!isLoggedIn) return false;
 
       return true;
