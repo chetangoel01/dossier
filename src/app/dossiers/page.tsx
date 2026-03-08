@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { auth, signOut } from "@/auth";
+import { getDossiers } from "@/server/queries/dossiers";
+import { DossierList } from "@/components/dossiers/DossierList";
 
 export const metadata: Metadata = {
   title: "Dossiers — Dossier",
@@ -9,9 +11,11 @@ export const metadata: Metadata = {
 export default async function DossiersPage() {
   const session = await auth();
 
-  if (!session?.user) {
+  if (!session?.user?.id) {
     redirect("/login");
   }
+
+  const dossiers = await getDossiers(session.user.id);
 
   return (
     <main
@@ -22,13 +26,14 @@ export default async function DossiersPage() {
       }}
     >
       <div style={{ maxWidth: "var(--space-content-max)", marginInline: "auto" }}>
+        {/* Page header */}
         <div
           style={{
             display: "flex",
-            alignItems: "center",
+            alignItems: "flex-end",
             justifyContent: "space-between",
             marginBottom: "2rem",
-            paddingBottom: "1rem",
+            paddingBottom: "1.25rem",
             borderBottom: "var(--border-thin) solid var(--color-border)",
           }}
         >
@@ -48,6 +53,7 @@ export default async function DossiersPage() {
                 fontFamily: "var(--font-mono)",
                 fontSize: "0.75rem",
                 color: "var(--color-ink-secondary)",
+                maxWidth: "none",
               }}
             >
               {session.user.email}
@@ -66,17 +72,7 @@ export default async function DossiersPage() {
           </form>
         </div>
 
-        <div className="panel" style={{ padding: "3rem 2rem", textAlign: "center" }}>
-          <p
-            style={{
-              fontFamily: "var(--font-mono)",
-              fontSize: "0.8125rem",
-              color: "var(--color-ink-secondary)",
-            }}
-          >
-            Your research workspace is ready. Dossier management coming in the next release.
-          </p>
-        </div>
+        <DossierList dossiers={dossiers} />
       </div>
     </main>
   );

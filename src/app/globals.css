@@ -366,3 +366,12 @@ textarea.input {
   background-color: var(--color-border);
   border: none;
 }
+
+/* ============================================================
+   DOSSIER LIST — link hover state
+   ============================================================ */
+
+.dossier-title-link:hover {
+  color: var(--color-accent-ink);
+  text-decoration: none;
+}
