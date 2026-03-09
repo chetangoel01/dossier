@@ -5,7 +5,11 @@
       "mcp__github__list_issues",
       "mcp__github__list_pull_requests",
       "Bash(command:*)",
-      "Bash(/bin/bash:*)"
+      "Bash(/bin/bash:*)",
+      "Bash(env:*)",
+      "Read(//Users/chetangoel/.claude/**)",
+      "Bash(security:*)",
+      "Bash(gh run:*)"
     ]
   }
 }
