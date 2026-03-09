@@ -23,6 +23,7 @@ export function buildUser(overrides: Partial<User> = {}): User {
     id: "user-test-id",
     email: "test@dossier.local",
     name: "Test User",
+    password_hash: null,
     created_at: new Date("2024-01-01"),
     updated_at: new Date("2024-01-01"),
     ...overrides,
