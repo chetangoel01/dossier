@@ -7,6 +7,7 @@ import {
   useState,
   useActionState,
 } from "react";
+import { useRouter } from "next/navigation";
 import { createSource } from "@/server/actions/sources";
 import type { SourceType } from "@prisma/client";
 
@@ -51,6 +52,7 @@ async function captureAction(
 }
 
 export function CaptureSourceModal({ dossierId, open, onClose }: Props) {
+  const router = useRouter();
   const dialogRef = useRef<HTMLDialogElement>(null);
   const [activeTab, setActiveTab] = useState<CaptureTab>("url");
   const [error, formAction, isPending] = useActionState(captureAction, null);
@@ -208,15 +210,15 @@ export function CaptureSourceModal({ dossierId, open, onClose }: Props) {
 
         // Success — close and let the page revalidate
         onClose();
-        // Force a page refresh to show the new source
-        window.location.reload();
+        // Refresh server data to show the new source
+        router.refresh();
       } catch {
         setUploadError("Upload failed. Please try again.");
       } finally {
         setIsUploading(false);
       }
     },
-    [selectedFile, dossierId, onClose],
+    [selectedFile, dossierId, onClose, router],
   );
 
   function handleDialogClick(e: React.MouseEvent<HTMLDialogElement>) {
