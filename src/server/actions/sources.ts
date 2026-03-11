@@ -274,6 +274,35 @@ export async function updateSource(
   }
 }
 
+export async function updateSourceStatus(
+  id: string,
+  status: SourceStatus,
+): Promise<{ error: string } | { success: true }> {
+  const session = await auth();
+  if (!session?.user?.id) return { error: "You must be signed in." };
+
+  if (!VALID_SOURCE_STATUSES.includes(status)) {
+    return {
+      error: `Invalid source status. Must be one of: ${VALID_SOURCE_STATUSES.join(", ")}.`,
+    };
+  }
+
+  const source = await verifySourceOwnership(id, session.user.id);
+  if (!source) return { error: "Source not found." };
+
+  try {
+    await db.source.update({
+      where: { id },
+      data: { source_status: status },
+    });
+
+    revalidatePath(`/dossiers/${source.dossier_id}/sources`);
+    return { success: true };
+  } catch {
+    return { error: "Failed to update source status. Please try again." };
+  }
+}
+
 export async function deleteSource(
   id: string,
 ): Promise<{ error: string } | { success: true }> {
