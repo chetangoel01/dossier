@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { auth, signOut } from "@/auth";
+import { getDossiers } from "@/server/queries/dossiers";
+import { DossiersClient } from "@/components/dossiers/DossiersClient";
 
 export const metadata: Metadata = {
   title: "Dossiers — Dossier",
@@ -12,6 +14,8 @@ export default async function DossiersPage() {
   if (!session?.user) {
     redirect("/login");
   }
+
+  const dossiers = await getDossiers(session.user.id);
 
   return (
     <main
@@ -66,17 +70,7 @@ export default async function DossiersPage() {
           </form>
         </div>
 
-        <div className="panel" style={{ padding: "3rem 2rem", textAlign: "center" }}>
-          <p
-            style={{
-              fontFamily: "var(--font-mono)",
-              fontSize: "0.8125rem",
-              color: "var(--color-ink-secondary)",
-            }}
-          >
-            Your research workspace is ready. Dossier management coming in the next release.
-          </p>
-        </div>
+        <DossiersClient userId={session.user.id} dossiers={dossiers} />
       </div>
     </main>
   );
