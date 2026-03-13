@@ -107,9 +107,15 @@ export function SourcesClient({ dossierId, sources }: Props) {
     return counts;
   }, [sources]);
 
+  const [statusError, setStatusError] = useState<string | null>(null);
+
   function handleStatusChange(sourceId: string, newStatus: SourceStatus) {
     startTransition(async () => {
-      await updateSourceStatus(sourceId, newStatus);
+      const result = await updateSourceStatus(sourceId, newStatus);
+      if ("error" in result) {
+        setStatusError(result.error);
+        setTimeout(() => setStatusError(null), 4000);
+      }
     });
   }
 
@@ -122,6 +128,22 @@ export function SourcesClient({ dossierId, sources }: Props) {
         width: "100%",
       }}
     >
+      {statusError && (
+        <div
+          role="alert"
+          style={{
+            padding: "0.75rem 1rem",
+            marginBottom: "1rem",
+            backgroundColor: "var(--color-accent-alert)",
+            color: "#fff",
+            borderRadius: "4px",
+            fontFamily: "var(--font-ui)",
+            fontSize: "0.875rem",
+          }}
+        >
+          {statusError}
+        </div>
+      )}
       {/* Header */}
       <div
         style={{
