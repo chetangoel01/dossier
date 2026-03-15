@@ -135,7 +135,7 @@ export function SourcesClient({ dossierId, sources }: Props) {
             padding: "0.75rem 1rem",
             marginBottom: "1rem",
             backgroundColor: "var(--color-accent-alert)",
-            color: "#fff",
+            color: "var(--color-bg-panel)",
             borderRadius: "4px",
             fontFamily: "var(--font-ui)",
             fontSize: "0.875rem",
