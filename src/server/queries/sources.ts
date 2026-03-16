@@ -50,3 +50,38 @@ export async function getSource(
 }
 
 export type SourceListItem = Awaited<ReturnType<typeof getSources>>[number];
+
+export async function getSourceForReader(id: string, userId: string) {
+  return db.source.findFirst({
+    where: {
+      id,
+      dossier: { owner_id: userId },
+    },
+    include: {
+      highlights: {
+        orderBy: { start_offset: "asc" },
+        select: {
+          id: true,
+          quote_text: true,
+          start_offset: true,
+          end_offset: true,
+          annotation: true,
+          label: true,
+          created_at: true,
+        },
+      },
+      tags: {
+        select: {
+          tag: { select: { id: true, name: true } },
+        },
+      },
+      _count: {
+        select: { highlights: true, mentions: true },
+      },
+    },
+  });
+}
+
+export type SourceReaderData = NonNullable<
+  Awaited<ReturnType<typeof getSourceForReader>>
+>;
