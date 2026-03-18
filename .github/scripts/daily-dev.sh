@@ -319,18 +319,13 @@ Optional improvements that aren't blockers.
 
 Then output this exact delimiter line:
 
----FOLLOW_UP_ISSUES_JSON---
+---FIXES_NEEDED---
 
-SECTION 2: A JSON array of follow-up issues for any warnings or critical issues found.
-Only create issues for concrete, actionable problems — NOT for nits or nice-to-haves.
-Each issue object must have: title (string), body (string), labels (array of strings).
-The title must start with [DOS-FIX] and reference the original ticket.
-If there are no actionable issues, output an empty array: []
+SECTION 2: A plain-text description of the concrete fixes needed, if any.
+Only describe fixes for warnings or critical issues — NOT for nits or nice-to-haves.
+If there are no actionable fixes, just write: NONE
 
-Example:
-[{\"title\": \"[DOS-FIX] Wire up globals.css import in layout.tsx (from DOS-001 review)\", \"body\": \"## Summary\nThe globals.css file exists but is not imported in layout.tsx, so the CSS reset is not applied.\n\n## Fix\nAdd import in layout.tsx.\n\n## Found During\nReview of #29 (DOS-001)\", \"labels\": [\"bug\", \"mvp\"]}]
-
-Do NOT write any files. Only output the two sections described above."
+Be specific about what files to change and what the fix should be. This description will be given to another Claude session that will apply the fixes directly to the code."
 
   local review_output
   review_output=$(env -u CLAUDECODE /Users/chetangoel/.local/bin/claude -p "$review_prompt" --allowedTools "Bash,Read,Glob,Grep" 2>&1) || true
@@ -343,9 +338,9 @@ Do NOT write any files. Only output the two sections described above."
   else
     # Split output on the delimiter
     local review_comment
-    local follow_up_json
-    review_comment=$(echo "$review_output" | sed -n '/---FOLLOW_UP_ISSUES_JSON---/q;p')
-    follow_up_json=$(echo "$review_output" | sed -n '/---FOLLOW_UP_ISSUES_JSON---/,$ { /---FOLLOW_UP_ISSUES_JSON---/d; p; }')
+    local fixes_needed
+    review_comment=$(echo "$review_output" | sed -n '/---FIXES_NEEDED---/q;p')
+    fixes_needed=$(echo "$review_output" | sed -n '/---FIXES_NEEDED---/,$ { /---FIXES_NEEDED---/d; p; }')
 
     # Post review as a PR comment
     local review_file
@@ -360,54 +355,48 @@ REVIEWEOF
     rm -f "$review_file"
     log "Review posted to PR #${pr_number}."
 
-    # Create follow-up issues from review findings
-    if [[ -n "$follow_up_json" ]]; then
-      # Extract the JSON array — use node to handle multiline JSON correctly
-      local clean_json
-      clean_json=$(echo "$follow_up_json" | node -e "
-        const input = require('fs').readFileSync('/dev/stdin','utf8');
-        const match = input.match(/(\[[\s\S]*\])/);
-        if (match) { try { JSON.parse(match[1]); process.stdout.write(match[1]); } catch(e) {} }
-      " 2>/dev/null) || clean_json=""
+    # Apply fixes directly to the PR branch if any were found
+    local fixes_trimmed
+    fixes_trimmed=$(echo "$fixes_needed" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
 
-      if [[ -n "$clean_json" && "$clean_json" != "[]" ]]; then
-        local issue_count
-        issue_count=$(echo "$clean_json" | node -e "
-          const json = JSON.parse(require('fs').readFileSync('/dev/stdin','utf8'));
-          console.log(json.length);
-        " 2>/dev/null) || issue_count=0
+    if [[ -n "$fixes_trimmed" && "$fixes_trimmed" != "NONE" ]]; then
+      log "Applying review fixes to PR branch..."
 
-        if [[ "$issue_count" -gt 0 ]]; then
-          log "Creating ${issue_count} follow-up issue(s) from review..."
-          echo "$clean_json" | node -e "
-            const json = JSON.parse(require('fs').readFileSync('/dev/stdin','utf8'));
-            json.forEach((issue, i) => {
-              console.log(JSON.stringify(issue));
-            });
-          " | while IFS= read -r issue_line; do
-            local fu_title fu_body fu_labels
-            fu_title=$(echo "$issue_line" | node -e "const d=JSON.parse(require('fs').readFileSync('/dev/stdin','utf8')); console.log(d.title)")
-            fu_body=$(echo "$issue_line" | node -e "const d=JSON.parse(require('fs').readFileSync('/dev/stdin','utf8')); console.log(d.body)")
-            fu_labels=$(echo "$issue_line" | node -e "const d=JSON.parse(require('fs').readFileSync('/dev/stdin','utf8')); console.log(d.labels.join(','))")
+      local fix_prompt
+      fix_prompt="You are applying code review fixes to the Dossier project.
 
-            local fu_body_file
-            fu_body_file=$(mktemp)
-            echo "$fu_body" > "$fu_body_file"
+Read CLAUDE.md for project conventions.
 
-            local fu_url
-            fu_url=$(gh issue create --repo "$REPO" \
-              --title "$fu_title" \
-              --label "$fu_labels" \
-              --body-file "$fu_body_file")
-            rm -f "$fu_body_file"
-            log "Follow-up issue created: $fu_url"
-          done
-        else
-          log "Review clean — no follow-up issues needed."
-        fi
-      else
-        log "Review clean — no follow-up issues needed."
+You are on branch ${branch_name} for PR #${pr_number} (issue #${issue_number}: ${title}).
+
+## Fixes to Apply
+
+${fixes_trimmed}
+
+## Instructions
+
+1. Read the relevant files mentioned above.
+2. Apply ONLY the fixes described — no other changes.
+3. Run npm run lint, npm run typecheck, and npm run build to verify nothing is broken.
+4. Stage and commit all changes with the message: fix(${ticket_id}): address review feedback"
+
+      env -u CLAUDECODE /Users/chetangoel/.local/bin/claude -p "$fix_prompt" --allowedTools "Bash,Read,Write,Edit,Glob,Grep" 2>&1 | tee -a "$LOG_FILE" || true
+
+      # Commit any uncommitted changes from the fix session
+      if [[ -n "$(git status --porcelain)" ]]; then
+        git add -A
+        git commit -m "fix(${ticket_id}): address review feedback"
       fi
+
+      # Push the fix commit to the PR branch
+      if [[ -n "$(git log origin/${branch_name}..HEAD --oneline 2>/dev/null)" ]]; then
+        git push origin "$branch_name"
+        log "Review fixes pushed to PR #${pr_number}."
+      else
+        log "No new commits from fix session."
+      fi
+    else
+      log "Review clean — no fixes needed."
     fi
   fi
 
