@@ -23,7 +23,7 @@ export default async function SourceReaderPage({
   const { id, sourceId } = await params;
 
   const [source, allSources] = await Promise.all([
-    getSourceForReader(sourceId, session.user.id),
+    getSourceForReader(sourceId, id, session.user.id),
     getSources(id, session.user.id),
   ]);
 

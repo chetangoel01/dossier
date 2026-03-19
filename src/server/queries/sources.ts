@@ -51,10 +51,11 @@ export async function getSource(
 
 export type SourceListItem = Awaited<ReturnType<typeof getSources>>[number];
 
-export async function getSourceForReader(id: string, userId: string) {
+export async function getSourceForReader(id: string, dossierId: string, userId: string) {
   return db.source.findFirst({
     where: {
       id,
+      dossier_id: dossierId,
       dossier: { owner_id: userId },
     },
     include: {
