@@ -1,8 +1,10 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useRef } from "react";
 import Link from "next/link";
 import { EvidenceGutter } from "./EvidenceGutter";
+import { HighlightedText } from "./HighlightedText";
+import { SelectionToolbar } from "./SelectionToolbar";
 import type { SourceReaderData, SourceListItem } from "@/server/queries/sources";
 
 interface Props {
@@ -51,6 +53,7 @@ function formatDate(date: Date | string): string {
 
 export function SourceReaderClient({ dossierId, source, allSources }: Props) {
   const [inspectorOpen, setInspectorOpen] = useState(true);
+  const readingAreaRef = useRef<HTMLDivElement>(null);
 
   const gutterMarks = useMemo(() => {
     const textLength = source.raw_text?.length ?? 1;
@@ -234,6 +237,7 @@ export function SourceReaderClient({ dossierId, source, allSources }: Props) {
             {/* Source body text */}
             {source.raw_text ? (
               <div
+                ref={readingAreaRef}
                 style={{
                   fontFamily: "var(--font-sans)",
                   fontSize: "0.9375rem",
@@ -241,9 +245,18 @@ export function SourceReaderClient({ dossierId, source, allSources }: Props) {
                   color: "var(--color-ink-primary)",
                   whiteSpace: "pre-wrap",
                   wordBreak: "break-word",
+                  position: "relative",
                 }}
               >
-                {source.raw_text}
+                <HighlightedText
+                  text={source.raw_text}
+                  highlights={source.highlights}
+                />
+                <SelectionToolbar
+                  sourceId={source.id}
+                  containerRef={readingAreaRef}
+                  rawText={source.raw_text}
+                />
               </div>
             ) : (
               <div
