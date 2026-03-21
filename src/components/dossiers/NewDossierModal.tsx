@@ -189,8 +189,8 @@ export function NewDossierModal({ open, onClose }: Props) {
                   fontSize: "0.8125rem",
                   color: "var(--color-accent-alert)",
                   padding: "0.5rem 0.75rem",
-                  backgroundColor: "#f0dede",
-                  border: "var(--border-thin) solid #d4a8a8",
+                  backgroundColor: "var(--color-error-bg)",
+                  border: "var(--border-thin) solid var(--color-error-border)",
                   borderRadius: "var(--radius-sm)",
                 }}
               >
