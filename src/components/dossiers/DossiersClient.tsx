@@ -2,20 +2,11 @@
 
 import { useState } from "react";
 import { NewDossierModal } from "./NewDossierModal";
-
-interface Dossier {
-  id: string;
-  title: string;
-  summary: string | null;
-  status: string;
-  created_at: Date;
-  updated_at: Date;
-  _count: { sources: number };
-}
+import type { DossierListItem } from "@/server/queries/dossiers";
 
 interface DossiersClientProps {
   userId: string;
-  dossiers: Dossier[];
+  dossiers: DossierListItem[];
 }
 
 const STATUS_LABEL: Record<string, string> = {
@@ -148,7 +139,7 @@ export function DossiersClient({ userId, dossiers }: DossiersClientProps) {
       )}
 
       <NewDossierModal
-        userId={userId}
+        key={modalOpen ? "open" : "closed"}
         open={modalOpen}
         onClose={() => setModalOpen(false)}
       />
