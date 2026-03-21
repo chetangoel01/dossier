@@ -5,7 +5,6 @@ import { NewDossierModal } from "./NewDossierModal";
 import type { DossierListItem } from "@/server/queries/dossiers";
 
 interface DossiersClientProps {
-  userId: string;
   dossiers: DossierListItem[];
 }
 
@@ -15,7 +14,7 @@ const STATUS_LABEL: Record<string, string> = {
   on_hold: "On hold",
 };
 
-export function DossiersClient({ userId, dossiers }: DossiersClientProps) {
+export function DossiersClient({ dossiers }: DossiersClientProps) {
   const [modalOpen, setModalOpen] = useState(false);
 
   return (

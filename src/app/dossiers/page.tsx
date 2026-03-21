@@ -70,7 +70,7 @@ export default async function DossiersPage() {
           </form>
         </div>
 
-        <DossiersClient userId={session.user.id} dossiers={dossiers} />
+        <DossiersClient dossiers={dossiers} />
       </div>
     </main>
   );
