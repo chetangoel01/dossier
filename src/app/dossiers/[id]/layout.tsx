@@ -98,17 +98,39 @@ export default async function DossierLayout({
       {/* Tab navigation */}
       <WorkspaceTabBar dossierId={id} />
 
-      {/* Main content region */}
-      <main
+      {/* Content + inspector region */}
+      <div
         style={{
           flex: 1,
           display: "flex",
-          flexDirection: "column",
           minHeight: 0,
         }}
       >
-        {children}
-      </main>
+        {/* Main content region */}
+        <main
+          style={{
+            flex: 1,
+            display: "flex",
+            flexDirection: "column",
+            minHeight: 0,
+          }}
+        >
+          {children}
+        </main>
+
+        {/* Right inspector slot — collapsed by default, populated per-tab */}
+        <aside
+          data-slot="inspector"
+          style={{
+            display: "none",
+            width: "22rem",
+            flexShrink: 0,
+            borderLeft: "var(--border-thin) solid var(--color-border)",
+            backgroundColor: "var(--color-bg-panel)",
+            overflowY: "auto",
+          }}
+        />
+      </div>
     </div>
   );
 }
