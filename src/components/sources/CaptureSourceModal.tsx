@@ -1,6 +1,12 @@
 "use client";
 
-import { useEffect, useRef, useState, useActionState } from "react";
+import {
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+  useActionState,
+} from "react";
 import { createSource } from "@/server/actions/sources";
 import type { SourceType } from "@prisma/client";
 
@@ -45,6 +51,10 @@ export function CaptureSourceModal({ dossierId, open, onClose }: Props) {
   const [activeTab, setActiveTab] = useState<CaptureTab>("url");
   const [error, formAction, isPending] = useActionState(captureAction, null);
   const [modalKey, setModalKey] = useState(0);
+  const [isFetchingTitle, setIsFetchingTitle] = useState(false);
+  const titleInputRef = useRef<HTMLInputElement>(null);
+  const titleTouchedRef = useRef(false);
+  const debounceRef = useRef<ReturnType<typeof setTimeout>>(null);
 
   // Track the previous pending state to detect successful submission
   const prevPendingRef = useRef(isPending);
@@ -62,11 +72,55 @@ export function CaptureSourceModal({ dossierId, open, onClose }: Props) {
     if (open) {
       setModalKey((k) => k + 1);
       setActiveTab("url");
+      titleTouchedRef.current = false;
+      setIsFetchingTitle(false);
       dialog.showModal();
     } else {
       dialog.close();
     }
   }, [open]);
+
+  const handleUrlChange = useCallback(
+    (e: React.ChangeEvent<HTMLInputElement>) => {
+      const url = e.target.value.trim();
+
+      if (debounceRef.current) clearTimeout(debounceRef.current);
+
+      // Only prefetch if the user hasn't manually typed a title
+      if (titleTouchedRef.current) return;
+
+      let parsed: URL;
+      try {
+        parsed = new URL(url);
+      } catch {
+        return;
+      }
+
+      if (!parsed.protocol.startsWith("http")) return;
+
+      debounceRef.current = setTimeout(async () => {
+        setIsFetchingTitle(true);
+        try {
+          const res = await fetch("/api/sources/prefetch-url", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ url }),
+          });
+          if (!res.ok) return;
+          const data = (await res.json()) as { title: string | null };
+          // Only fill if user still hasn't touched the title
+          if (data.title && !titleTouchedRef.current && titleInputRef.current) {
+            titleInputRef.current.value = data.title;
+          }
+        } catch {
+          // Silently ignore prefetch failures
+        } finally {
+          setIsFetchingTitle(false);
+        }
+      }, 600);
+    },
+    [],
+  );
 
   function handleDialogClick(e: React.MouseEvent<HTMLDialogElement>) {
     const rect = dialogRef.current?.getBoundingClientRect();
@@ -213,6 +267,7 @@ export function CaptureSourceModal({ dossierId, open, onClose }: Props) {
                 <span style={{ color: "var(--color-accent-alert)" }}>*</span>
               </label>
               <input
+                ref={titleInputRef}
                 id="source-title"
                 name="title"
                 type="text"
@@ -227,6 +282,11 @@ export function CaptureSourceModal({ dossierId, open, onClose }: Props) {
                 }
                 className="input"
                 style={{ fontSize: "0.9375rem" }}
+                onChange={(e) => {
+                  if (e.target.value.trim()) {
+                    titleTouchedRef.current = true;
+                  }
+                }}
               />
             </div>
 
@@ -256,7 +316,20 @@ export function CaptureSourceModal({ dossierId, open, onClose }: Props) {
                   required
                   placeholder="https://..."
                   className="input"
+                  onChange={handleUrlChange}
                 />
+                {isFetchingTitle && (
+                  <p
+                    style={{
+                      fontFamily: "var(--font-mono)",
+                      fontSize: "0.6875rem",
+                      color: "var(--color-ink-secondary)",
+                      marginTop: "0.25rem",
+                    }}
+                  >
+                    Fetching page title…
+                  </p>
+                )}
               </div>
             )}
 
