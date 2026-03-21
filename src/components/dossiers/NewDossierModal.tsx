@@ -95,8 +95,7 @@ export function NewDossierModal({ open, onClose }: Props) {
           </button>
         </div>
 
-        {/* key resets the form and its useActionState error each time the modal opens */}
-        <form key={open ? "open" : "closed"} action={formAction}>
+        <form action={formAction}>
           <div style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
             <div>
               <label
