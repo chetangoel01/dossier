@@ -36,6 +36,26 @@ interface SourceInput {
   sourceStatus?: SourceStatus;
 }
 
+/** Validate type-specific required fields given the effective type and field values. */
+function validateTypeSpecificFields(
+  type: SourceType,
+  fields: { url?: string | null; rawText?: string | null },
+): string | null {
+  if (type === "web_link" && !fields.url?.trim()) {
+    return "URL is required for web link sources.";
+  }
+
+  if (type === "pasted_text" && !fields.rawText?.trim()) {
+    return "Text content is required for pasted text sources.";
+  }
+
+  if (type === "manual_note" && !fields.rawText?.trim()) {
+    return "Note content is required for manual note sources.";
+  }
+
+  return null;
+}
+
 function validateSourceInput(
   input: SourceInput,
 ): string | null {
@@ -53,18 +73,11 @@ function validateSourceInput(
     return `Invalid source status. Must be one of: ${VALID_SOURCE_STATUSES.join(", ")}.`;
   }
 
-  // Type-specific validation
-  if (input.type === "web_link" && !input.url?.trim()) {
-    return "URL is required for web link sources.";
-  }
-
-  if (input.type === "pasted_text" && !input.rawText?.trim()) {
-    return "Text content is required for pasted text sources.";
-  }
-
-  if (input.type === "manual_note" && !input.rawText?.trim()) {
-    return "Note content is required for manual note sources.";
-  }
+  const typeError = validateTypeSpecificFields(input.type, {
+    url: input.url,
+    rawText: input.rawText,
+  });
+  if (typeError) return typeError;
 
   if (input.credibilityRating != null) {
     if (
@@ -102,13 +115,19 @@ async function verifyDossierOwnership(
 async function verifySourceOwnership(
   sourceId: string,
   userId: string,
-): Promise<{ id: string; dossier_id: string } | null> {
+): Promise<{
+  id: string;
+  dossier_id: string;
+  type: SourceType;
+  url: string | null;
+  raw_text: string | null;
+} | null> {
   return db.source.findFirst({
     where: {
       id: sourceId,
       dossier: { owner_id: userId },
     },
-    select: { id: true, dossier_id: true },
+    select: { id: true, dossier_id: true, type: true, url: true, raw_text: true },
   });
 }
 
@@ -201,6 +220,17 @@ export async function updateSource(
       return { error: "Published date is invalid." };
     }
   }
+
+  // Enforce type-specific required fields against the effective (merged) state
+  const effectiveType = input.type ?? source.type;
+  const effectiveUrl = input.url !== undefined ? input.url : source.url;
+  const effectiveRawText = input.rawText !== undefined ? input.rawText : source.raw_text;
+
+  const typeError = validateTypeSpecificFields(effectiveType, {
+    url: effectiveUrl,
+    rawText: effectiveRawText,
+  });
+  if (typeError) return { error: typeError };
 
   try {
     await db.source.update({
