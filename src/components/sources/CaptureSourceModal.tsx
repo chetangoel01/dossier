@@ -16,13 +16,17 @@ interface Props {
   onClose: () => void;
 }
 
-type CaptureTab = "url" | "paste" | "note";
+type CaptureTab = "url" | "paste" | "note" | "file";
 
 const TAB_CONFIG: { key: CaptureTab; label: string; sourceType: SourceType }[] = [
   { key: "url", label: "URL", sourceType: "web_link" },
   { key: "paste", label: "Paste Text", sourceType: "pasted_text" },
   { key: "note", label: "Note", sourceType: "manual_note" },
+  { key: "file", label: "File", sourceType: "pdf" },
 ];
+
+const ACCEPTED_FILE_TYPES = ".pdf,.txt,text/plain,application/pdf";
+const MAX_FILE_SIZE = 20 * 1024 * 1024; // 20 MB
 
 async function captureAction(
   _prev: string | null,
@@ -56,6 +60,13 @@ export function CaptureSourceModal({ dossierId, open, onClose }: Props) {
   const titleTouchedRef = useRef(false);
   const debounceRef = useRef<ReturnType<typeof setTimeout>>(null);
 
+  // File upload state
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [fileError, setFileError] = useState<string | null>(null);
+  const [isUploading, setIsUploading] = useState(false);
+  const [uploadError, setUploadError] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
   // Track the previous pending state to detect successful submission
   const prevPendingRef = useRef(isPending);
   useEffect(() => {
@@ -74,6 +85,10 @@ export function CaptureSourceModal({ dossierId, open, onClose }: Props) {
       setActiveTab("url");
       titleTouchedRef.current = false;
       setIsFetchingTitle(false);
+      setSelectedFile(null);
+      setFileError(null);
+      setUploadError(null);
+      setIsUploading(false);
       dialog.showModal();
     } else {
       dialog.close();
@@ -122,6 +137,88 @@ export function CaptureSourceModal({ dossierId, open, onClose }: Props) {
     [],
   );
 
+  const handleFileChange = useCallback(
+    (e: React.ChangeEvent<HTMLInputElement>) => {
+      setFileError(null);
+      setUploadError(null);
+      const file = e.target.files?.[0] ?? null;
+      if (!file) {
+        setSelectedFile(null);
+        return;
+      }
+
+      // Validate type
+      const validTypes = ["application/pdf", "text/plain"];
+      if (!validTypes.includes(file.type)) {
+        setFileError(
+          "Unsupported file type. Only PDF and plain text files are accepted.",
+        );
+        setSelectedFile(null);
+        e.target.value = "";
+        return;
+      }
+
+      // Validate size
+      if (file.size > MAX_FILE_SIZE) {
+        setFileError("File is too large. Maximum size is 20 MB.");
+        setSelectedFile(null);
+        e.target.value = "";
+        return;
+      }
+
+      setSelectedFile(file);
+
+      // Auto-fill title from filename if user hasn't typed one
+      if (!titleTouchedRef.current && titleInputRef.current) {
+        const nameWithoutExt = file.name.replace(/\.[^.]+$/, "");
+        titleInputRef.current.value = nameWithoutExt;
+      }
+    },
+    [],
+  );
+
+  const handleFileUpload = useCallback(
+    async (e: React.FormEvent<HTMLFormElement>) => {
+      e.preventDefault();
+      if (!selectedFile) return;
+
+      const title = titleInputRef.current?.value.trim();
+      if (!title) return;
+
+      setIsUploading(true);
+      setUploadError(null);
+
+      try {
+        const formData = new FormData();
+        formData.set("file", selectedFile);
+        formData.set("dossierId", dossierId);
+        formData.set("title", title);
+
+        const res = await fetch("/api/sources/upload", {
+          method: "POST",
+          body: formData,
+        });
+
+        const data = (await res.json()) as { id?: string; error?: string };
+
+        if (!res.ok || data.error) {
+          setUploadError(data.error ?? "Upload failed. Please try again.");
+          return;
+        }
+
+        // Success — close and let the page revalidate
+        onClose();
+        // Force a page refresh to show the new source
+        window.location.reload();
+      } catch {
+        setUploadError("Upload failed. Please try again.");
+      } finally {
+        setIsUploading(false);
+      }
+    },
+    [selectedFile, dossierId, onClose],
+  );
+
   function handleDialogClick(e: React.MouseEvent<HTMLDialogElement>) {
     const rect = dialogRef.current?.getBoundingClientRect();
     if (!rect) return;
@@ -137,6 +234,21 @@ export function CaptureSourceModal({ dossierId, open, onClose }: Props) {
   }
 
   const currentConfig = TAB_CONFIG.find((t) => t.key === activeTab)!;
+  const isFileTab = activeTab === "file";
+  const displayError = isFileTab ? uploadError : error;
+  const isSubmitting = isFileTab ? isUploading : isPending;
+
+  // Label style shared across all field labels
+  const labelStyle: React.CSSProperties = {
+    display: "block",
+    fontFamily: "var(--font-mono)",
+    fontSize: "0.75rem",
+    fontWeight: 500,
+    color: "var(--color-ink-secondary)",
+    textTransform: "uppercase",
+    letterSpacing: "0.05em",
+    marginBottom: "0.375rem",
+  };
 
   return (
     <dialog
@@ -183,7 +295,7 @@ export function CaptureSourceModal({ dossierId, open, onClose }: Props) {
                 maxWidth: "none",
               }}
             >
-              Capture a URL, paste text, or write a note
+              Capture a URL, paste text, write a note, or upload a file
             </p>
           </div>
           <button
@@ -240,29 +352,23 @@ export function CaptureSourceModal({ dossierId, open, onClose }: Props) {
           ))}
         </div>
 
-        {/* Form */}
-        <form action={formAction} key={modalKey}>
+        {/* Form — file tab uses its own submit handler; others use server action */}
+        <form
+          action={isFileTab ? undefined : formAction}
+          onSubmit={isFileTab ? handleFileUpload : undefined}
+          key={modalKey}
+        >
           <input type="hidden" name="dossierId" value={dossierId} />
-          <input type="hidden" name="type" value={currentConfig.sourceType} />
+          {!isFileTab && (
+            <input type="hidden" name="type" value={currentConfig.sourceType} />
+          )}
 
           <div
             style={{ display: "flex", flexDirection: "column", gap: "1rem" }}
           >
             {/* Title */}
             <div>
-              <label
-                htmlFor="source-title"
-                style={{
-                  display: "block",
-                  fontFamily: "var(--font-mono)",
-                  fontSize: "0.75rem",
-                  fontWeight: 500,
-                  color: "var(--color-ink-secondary)",
-                  textTransform: "uppercase",
-                  letterSpacing: "0.05em",
-                  marginBottom: "0.375rem",
-                }}
-              >
+              <label htmlFor="source-title" style={labelStyle}>
                 Title{" "}
                 <span style={{ color: "var(--color-accent-alert)" }}>*</span>
               </label>
@@ -278,7 +384,9 @@ export function CaptureSourceModal({ dossierId, open, onClose }: Props) {
                     ? "e.g. SEC Filing — Northgate Pharma Q3 2025"
                     : activeTab === "paste"
                       ? "e.g. Reuters article on supply chain disruptions"
-                      : "e.g. Interview notes — Jane Doe, March 2026"
+                      : activeTab === "file"
+                        ? "e.g. Quarterly Earnings Report Q3 2025"
+                        : "e.g. Interview notes — Jane Doe, March 2026"
                 }
                 className="input"
                 style={{ fontSize: "0.9375rem" }}
@@ -293,19 +401,7 @@ export function CaptureSourceModal({ dossierId, open, onClose }: Props) {
             {/* URL field */}
             {activeTab === "url" && (
               <div>
-                <label
-                  htmlFor="source-url"
-                  style={{
-                    display: "block",
-                    fontFamily: "var(--font-mono)",
-                    fontSize: "0.75rem",
-                    fontWeight: 500,
-                    color: "var(--color-ink-secondary)",
-                    textTransform: "uppercase",
-                    letterSpacing: "0.05em",
-                    marginBottom: "0.375rem",
-                  }}
-                >
+                <label htmlFor="source-url" style={labelStyle}>
                   URL{" "}
                   <span style={{ color: "var(--color-accent-alert)" }}>*</span>
                 </label>
@@ -336,19 +432,7 @@ export function CaptureSourceModal({ dossierId, open, onClose }: Props) {
             {/* Pasted text field */}
             {activeTab === "paste" && (
               <div>
-                <label
-                  htmlFor="source-paste"
-                  style={{
-                    display: "block",
-                    fontFamily: "var(--font-mono)",
-                    fontSize: "0.75rem",
-                    fontWeight: 500,
-                    color: "var(--color-ink-secondary)",
-                    textTransform: "uppercase",
-                    letterSpacing: "0.05em",
-                    marginBottom: "0.375rem",
-                  }}
-                >
+                <label htmlFor="source-paste" style={labelStyle}>
                   Content{" "}
                   <span style={{ color: "var(--color-accent-alert)" }}>*</span>
                 </label>
@@ -367,19 +451,7 @@ export function CaptureSourceModal({ dossierId, open, onClose }: Props) {
             {/* Note field */}
             {activeTab === "note" && (
               <div>
-                <label
-                  htmlFor="source-note"
-                  style={{
-                    display: "block",
-                    fontFamily: "var(--font-mono)",
-                    fontSize: "0.75rem",
-                    fontWeight: 500,
-                    color: "var(--color-ink-secondary)",
-                    textTransform: "uppercase",
-                    letterSpacing: "0.05em",
-                    marginBottom: "0.375rem",
-                  }}
-                >
+                <label htmlFor="source-note" style={labelStyle}>
                   Note{" "}
                   <span style={{ color: "var(--color-accent-alert)" }}>*</span>
                 </label>
@@ -395,8 +467,107 @@ export function CaptureSourceModal({ dossierId, open, onClose }: Props) {
               </div>
             )}
 
+            {/* File upload field */}
+            {activeTab === "file" && (
+              <div>
+                <label htmlFor="source-file" style={labelStyle}>
+                  File{" "}
+                  <span style={{ color: "var(--color-accent-alert)" }}>*</span>
+                </label>
+                <div
+                  style={{
+                    border: "var(--border-thin) dashed var(--color-border)",
+                    borderRadius: "var(--radius-sm)",
+                    padding: "1.5rem",
+                    textAlign: "center",
+                    backgroundColor: "var(--color-bg-canvas)",
+                    cursor: "pointer",
+                    transition: "border-color var(--duration-fast) ease",
+                  }}
+                  onClick={() => fileInputRef.current?.click()}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" || e.key === " ") {
+                      e.preventDefault();
+                      fileInputRef.current?.click();
+                    }
+                  }}
+                  role="button"
+                  tabIndex={0}
+                  aria-label="Choose a file to upload"
+                >
+                  <input
+                    ref={fileInputRef}
+                    id="source-file"
+                    type="file"
+                    accept={ACCEPTED_FILE_TYPES}
+                    onChange={handleFileChange}
+                    style={{ display: "none" }}
+                  />
+                  {selectedFile ? (
+                    <div>
+                      <p
+                        style={{
+                          fontFamily: "var(--font-sans)",
+                          fontSize: "0.875rem",
+                          color: "var(--color-ink-primary)",
+                          fontWeight: 500,
+                        }}
+                      >
+                        {selectedFile.name}
+                      </p>
+                      <p
+                        style={{
+                          fontFamily: "var(--font-mono)",
+                          fontSize: "0.6875rem",
+                          color: "var(--color-ink-secondary)",
+                          marginTop: "0.25rem",
+                        }}
+                      >
+                        {formatFileSize(selectedFile.size)}
+                      </p>
+                    </div>
+                  ) : (
+                    <div>
+                      <p
+                        style={{
+                          fontFamily: "var(--font-sans)",
+                          fontSize: "0.875rem",
+                          color: "var(--color-ink-secondary)",
+                        }}
+                      >
+                        Click to choose a file
+                      </p>
+                      <p
+                        style={{
+                          fontFamily: "var(--font-mono)",
+                          fontSize: "0.6875rem",
+                          color: "var(--color-ink-secondary)",
+                          marginTop: "0.25rem",
+                        }}
+                      >
+                        PDF or plain text — max 20 MB
+                      </p>
+                    </div>
+                  )}
+                </div>
+
+                {fileError && (
+                  <p
+                    style={{
+                      fontFamily: "var(--font-mono)",
+                      fontSize: "0.8125rem",
+                      color: "var(--color-accent-alert)",
+                      marginTop: "0.5rem",
+                    }}
+                  >
+                    {fileError}
+                  </p>
+                )}
+              </div>
+            )}
+
             {/* Error */}
-            {error && (
+            {displayError && (
               <p
                 style={{
                   fontFamily: "var(--font-mono)",
@@ -408,7 +579,7 @@ export function CaptureSourceModal({ dossierId, open, onClose }: Props) {
                   borderRadius: "var(--radius-sm)",
                 }}
               >
-                {error}
+                {displayError}
               </p>
             )}
 
@@ -427,16 +598,20 @@ export function CaptureSourceModal({ dossierId, open, onClose }: Props) {
                 type="button"
                 className="btn btn-ghost"
                 onClick={onClose}
-                disabled={isPending}
+                disabled={isSubmitting}
               >
                 Cancel
               </button>
               <button
                 type="submit"
                 className="btn btn-primary"
-                disabled={isPending}
+                disabled={isSubmitting || (isFileTab && !selectedFile)}
               >
-                {isPending ? "Saving…" : "Add Source"}
+                {isSubmitting
+                  ? isFileTab
+                    ? "Uploading…"
+                    : "Saving…"
+                  : "Add Source"}
               </button>
             </div>
           </div>
@@ -444,4 +619,10 @@ export function CaptureSourceModal({ dossierId, open, onClose }: Props) {
       </div>
     </dialog>
   );
+}
+
+function formatFileSize(bytes: number): string {
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 }
