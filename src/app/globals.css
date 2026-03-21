@@ -29,6 +29,8 @@
 
   --color-chip-citation: #e0ebf5;
   --color-highlight-wash: rgba(24, 78, 119, 0.12);
+  --color-error-bg: #f0dede;
+  --color-error-border: #d4a8a8;
 
   /* Border radius */
   --radius-xs: 2px;
