@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/auth";
+import { validateUrlForFetch } from "@/lib/ssrf";
 
 export async function POST(req: NextRequest) {
   const session = await auth();
@@ -23,6 +24,12 @@ export async function POST(req: NextRequest) {
     new URL(url);
   } catch {
     return NextResponse.json({ error: "Invalid URL" }, { status: 400 });
+  }
+
+  // SSRF protection: reject private/internal addresses
+  const ssrfCheck = await validateUrlForFetch(url);
+  if (!ssrfCheck.safe) {
+    return NextResponse.json({ error: ssrfCheck.reason }, { status: 400 });
   }
 
   try {
