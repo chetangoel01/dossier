@@ -3,10 +3,11 @@ import { auth } from "@/auth";
 import { db } from "@/lib/db";
 import { saveUploadedFile, deleteStoredFile } from "@/lib/storage";
 import { PDFParse } from "pdf-parse";
+import type { SourceType } from "@prisma/client";
 
-const ALLOWED_TYPES: Record<string, string> = {
-  "application/pdf": "pdf",
-  "text/plain": "txt",
+const ALLOWED_TYPES: Record<string, { ext: string; sourceType: SourceType }> = {
+  "application/pdf": { ext: "pdf", sourceType: "pdf" },
+  "text/plain": { ext: "txt", sourceType: "pasted_text" },
 };
 
 const MAX_FILE_SIZE = 20 * 1024 * 1024; // 20 MB
@@ -47,8 +48,8 @@ export async function POST(req: NextRequest) {
   }
 
   // Validate file type
-  const fileExt = ALLOWED_TYPES[file.type];
-  if (!fileExt) {
+  const fileInfo = ALLOWED_TYPES[file.type];
+  if (!fileInfo) {
     return NextResponse.json(
       {
         error:
@@ -112,7 +113,7 @@ export async function POST(req: NextRequest) {
     const source = await db.source.create({
       data: {
         dossier_id: dossierId,
-        type: "pdf",
+        type: fileInfo.sourceType,
         title,
         raw_text: rawText,
         file_path: stored.filePath,
