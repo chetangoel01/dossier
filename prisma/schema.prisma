@@ -110,6 +110,9 @@ model Source {
   type               SourceType
   title              String
   url                String?
+  file_path          String?
+  file_name          String?
+  file_size          Int?
   author             String?
   publisher          String?
   published_at       DateTime?
