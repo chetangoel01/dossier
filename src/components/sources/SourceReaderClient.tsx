@@ -5,12 +5,15 @@ import Link from "next/link";
 import { EvidenceGutter } from "./EvidenceGutter";
 import { HighlightedText } from "./HighlightedText";
 import { SelectionToolbar } from "./SelectionToolbar";
+import { CreateClaimModal } from "@/components/claims/CreateClaimModal";
 import type { SourceReaderData, SourceListItem } from "@/server/queries/sources";
+import type { SourceClaimItem } from "@/server/queries/claims";
 
 interface Props {
   dossierId: string;
   source: SourceReaderData;
   allSources: SourceListItem[];
+  claims: SourceClaimItem[];
 }
 
 const TYPE_LABELS: Record<string, string> = {
@@ -51,9 +54,30 @@ function formatDate(date: Date | string): string {
   });
 }
 
-export function SourceReaderClient({ dossierId, source, allSources }: Props) {
+const CLAIM_STATUS_LABELS: Record<string, string> = {
+  open: "Open",
+  supported: "Supported",
+  contested: "Contested",
+  deprecated: "Deprecated",
+};
+
+const CLAIM_STATUS_CHIP: Record<string, string> = {
+  open: "chip",
+  supported: "chip chip-success",
+  contested: "chip chip-alert",
+  deprecated: "chip chip-warning",
+};
+
+export function SourceReaderClient({ dossierId, source, allSources, claims }: Props) {
   const [inspectorOpen, setInspectorOpen] = useState(true);
   const readingAreaRef = useRef<HTMLDivElement>(null);
+  const [claimModalOpen, setClaimModalOpen] = useState(false);
+  const [preselectedHighlightIds, setPreselectedHighlightIds] = useState<string[]>([]);
+
+  const openClaimModal = (highlightId?: string) => {
+    setPreselectedHighlightIds(highlightId ? [highlightId] : []);
+    setClaimModalOpen(true);
+  };
 
   const gutterMarks = useMemo(() => {
     const textLength = source.raw_text?.length ?? 1;
@@ -474,36 +498,163 @@ export function SourceReaderClient({ dossierId, source, allSources }: Props) {
                       : h.quote_text}
                     &rdquo;
                   </p>
-                  <span
+                  <div
                     style={{
-                      fontFamily: "var(--font-mono)",
-                      fontSize: "0.6875rem",
-                      color: "var(--color-ink-secondary)",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "space-between",
                       marginTop: "0.25rem",
-                      display: "block",
                     }}
                   >
-                    {LABEL_LABELS[h.label] ?? h.label}
-                  </span>
+                    <span
+                      style={{
+                        fontFamily: "var(--font-mono)",
+                        fontSize: "0.6875rem",
+                        color: "var(--color-ink-secondary)",
+                      }}
+                    >
+                      {LABEL_LABELS[h.label] ?? h.label}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => openClaimModal(h.id)}
+                      style={{
+                        fontFamily: "var(--font-mono)",
+                        fontSize: "0.625rem",
+                        color: "var(--color-accent-ink)",
+                        backgroundColor: "transparent",
+                        border: "none",
+                        cursor: "pointer",
+                        padding: "0.125rem 0.25rem",
+                        borderRadius: "var(--radius-xs)",
+                        letterSpacing: "0.02em",
+                        transition:
+                          "background-color var(--duration-fast) ease",
+                      }}
+                      onMouseEnter={(e) => {
+                        (e.currentTarget as HTMLButtonElement).style.backgroundColor =
+                          "var(--color-bg-selected)";
+                      }}
+                      onMouseLeave={(e) => {
+                        (e.currentTarget as HTMLButtonElement).style.backgroundColor =
+                          "transparent";
+                      }}
+                    >
+                      + Claim
+                    </button>
+                  </div>
                 </div>
               ))}
             </div>
           )}
         </InspectorSection>
 
-        {/* Linked Claims placeholder */}
-        <InspectorSection title="Linked Claims">
-          <p
-            style={{
-              fontFamily: "var(--font-mono)",
-              fontSize: "0.75rem",
-              color: "var(--color-ink-secondary)",
-              opacity: 0.6,
-              maxWidth: "none",
-            }}
-          >
-            Claims linked to this source will appear here.
-          </p>
+        {/* Linked Claims */}
+        <InspectorSection title="Linked Claims" count={claims.length}>
+          {claims.length === 0 ? (
+            <div>
+              <p
+                style={{
+                  fontFamily: "var(--font-mono)",
+                  fontSize: "0.75rem",
+                  color: "var(--color-ink-secondary)",
+                  opacity: 0.6,
+                  maxWidth: "none",
+                  marginBottom: "0.5rem",
+                }}
+              >
+                No claims yet. Create one from a highlight.
+              </p>
+              {source.highlights.length > 0 && (
+                <button
+                  type="button"
+                  className="btn btn-secondary"
+                  onClick={() => openClaimModal()}
+                  style={{ fontSize: "0.75rem", padding: "0.25rem 0.5rem" }}
+                >
+                  + Create Claim
+                </button>
+              )}
+            </div>
+          ) : (
+            <div
+              style={{
+                display: "flex",
+                flexDirection: "column",
+                gap: "0.5rem",
+              }}
+            >
+              {claims.map((c) => (
+                <div
+                  key={c.id}
+                  style={{
+                    padding: "0.5rem",
+                    borderLeft:
+                      "var(--border-rule) solid var(--color-accent-ink)",
+                    backgroundColor: "var(--color-bg-canvas)",
+                    borderRadius: "0 var(--radius-xs) var(--radius-xs) 0",
+                  }}
+                >
+                  <p
+                    style={{
+                      fontFamily: "var(--font-sans)",
+                      fontSize: "0.8125rem",
+                      color: "var(--color-ink-primary)",
+                      lineHeight: 1.4,
+                      maxWidth: "none",
+                    }}
+                  >
+                    {c.statement.length > 140
+                      ? c.statement.slice(0, 140) + "…"
+                      : c.statement}
+                  </p>
+                  <div
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      gap: "0.375rem",
+                      marginTop: "0.25rem",
+                    }}
+                  >
+                    <span
+                      className={CLAIM_STATUS_CHIP[c.status] ?? "chip"}
+                      style={{ fontSize: "0.625rem", padding: "0.0625rem 0.375rem" }}
+                    >
+                      {CLAIM_STATUS_LABELS[c.status] ?? c.status}
+                    </span>
+                    {c.confidence != null && (
+                      <span
+                        style={{
+                          fontFamily: "var(--font-mono)",
+                          fontSize: "0.625rem",
+                          color: "var(--color-ink-secondary)",
+                        }}
+                      >
+                        {c.confidence}%
+                      </span>
+                    )}
+                    <span
+                      style={{
+                        fontFamily: "var(--font-mono)",
+                        fontSize: "0.625rem",
+                        color: "var(--color-ink-secondary)",
+                      }}
+                    >
+                      · {c._count.highlights} hl
+                    </span>
+                  </div>
+                </div>
+              ))}
+              <button
+                type="button"
+                className="btn btn-secondary"
+                onClick={() => openClaimModal()}
+                style={{ fontSize: "0.75rem", padding: "0.25rem 0.5rem", alignSelf: "flex-start" }}
+              >
+                + Create Claim
+              </button>
+            </div>
+          )}
         </InspectorSection>
 
         {/* Linked Entities placeholder */}
@@ -550,6 +701,19 @@ export function SourceReaderClient({ dossierId, source, allSources }: Props) {
           Inspector
         </button>
       )}
+
+      {/* Create Claim Modal */}
+      <CreateClaimModal
+        dossierId={dossierId}
+        highlights={source.highlights.map((h) => ({
+          id: h.id,
+          quote_text: h.quote_text,
+          label: h.label,
+        }))}
+        preselectedHighlightIds={preselectedHighlightIds}
+        open={claimModalOpen}
+        onClose={() => setClaimModalOpen(false)}
+      />
     </div>
   );
 }
