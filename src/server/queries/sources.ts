@@ -28,6 +28,11 @@ export async function getSources(dossierId: string, userId: string) {
       _count: {
         select: { highlights: true },
       },
+      tags: {
+        select: {
+          tag: { select: { id: true, name: true } },
+        },
+      },
     },
   });
 }
