@@ -12,6 +12,8 @@ interface Highlight {
 interface HighlightedTextProps {
   text: string;
   highlights: Highlight[];
+  selectedHighlightId?: string | null;
+  onHighlightClick?: (id: string) => void;
 }
 
 const LABEL_BG: Record<string, string> = {
@@ -22,7 +24,7 @@ const LABEL_BG: Record<string, string> = {
   quote: "var(--color-highlight-wash)",
 };
 
-export function HighlightedText({ text, highlights }: HighlightedTextProps) {
+export function HighlightedText({ text, highlights, selectedHighlightId, onHighlightClick }: HighlightedTextProps) {
   const segments = useMemo(() => {
     if (highlights.length === 0) return [{ text, highlightId: null, label: null }];
 
@@ -71,12 +73,18 @@ export function HighlightedText({ text, highlights }: HighlightedTextProps) {
           <mark
             key={seg.highlightId}
             data-highlight-id={seg.highlightId}
+            onClick={() => onHighlightClick?.(seg.highlightId!)}
             style={{
               backgroundColor: LABEL_BG[seg.label ?? "evidence"] ?? LABEL_BG.evidence,
               borderBottom: "1.5px solid var(--color-accent-ink)",
               borderRadius: "var(--radius-xs)",
               padding: "0.0625rem 0",
               color: "inherit",
+              cursor: onHighlightClick ? "pointer" : undefined,
+              outline: seg.highlightId === selectedHighlightId
+                ? "2px solid var(--color-accent-ink)"
+                : undefined,
+              outlineOffset: "1px",
             }}
           >
             {seg.text}

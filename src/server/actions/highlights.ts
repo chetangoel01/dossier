@@ -64,6 +64,51 @@ export async function createHighlight(
   }
 }
 
+interface UpdateHighlightInput {
+  id: string;
+  annotation?: string | null;
+  label?: HighlightLabel;
+}
+
+export async function updateHighlight(
+  input: UpdateHighlightInput,
+): Promise<{ error: string } | { success: true }> {
+  const session = await auth();
+  if (!session?.user?.id) return { error: "You must be signed in." };
+
+  if (!input.id) return { error: "Highlight ID is required." };
+  if (input.label && !VALID_LABELS.includes(input.label))
+    return { error: `Invalid label. Must be one of: ${VALID_LABELS.join(", ")}.` };
+
+  const highlight = await db.highlight.findFirst({
+    where: {
+      id: input.id,
+      source: { dossier: { owner_id: session.user.id } },
+    },
+    select: { id: true, source: { select: { id: true, dossier_id: true } } },
+  });
+  if (!highlight) return { error: "Highlight not found." };
+
+  const data: Record<string, unknown> = {};
+  if (input.label !== undefined) data.label = input.label;
+  if (input.annotation !== undefined)
+    data.annotation = input.annotation?.trim() || null;
+
+  if (Object.keys(data).length === 0)
+    return { error: "No fields to update." };
+
+  try {
+    await db.highlight.update({ where: { id: input.id }, data });
+
+    revalidatePath(
+      `/dossiers/${highlight.source.dossier_id}/sources/${highlight.source.id}`,
+    );
+    return { success: true };
+  } catch {
+    return { error: "Failed to update highlight. Please try again." };
+  }
+}
+
 export async function deleteHighlight(
   id: string,
 ): Promise<{ error: string } | { success: true }> {

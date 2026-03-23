@@ -1,9 +1,10 @@
 "use client";
 
-import { useState, useMemo, useRef } from "react";
+import { useState, useMemo, useRef, useCallback } from "react";
 import Link from "next/link";
 import { EvidenceGutter } from "./EvidenceGutter";
 import { HighlightedText } from "./HighlightedText";
+import { HighlightCard } from "./HighlightCard";
 import { SelectionToolbar } from "./SelectionToolbar";
 import type { SourceReaderData, SourceListItem } from "@/server/queries/sources";
 
@@ -35,14 +36,6 @@ const STATUS_CHIP_CLASS: Record<string, string> = {
   discarded: "chip chip-alert",
 };
 
-const LABEL_LABELS: Record<string, string> = {
-  evidence: "Evidence",
-  question: "Question",
-  counterpoint: "Counterpoint",
-  stat: "Stat",
-  quote: "Quote",
-};
-
 function formatDate(date: Date | string): string {
   return new Date(date).toLocaleDateString("en-US", {
     month: "short",
@@ -53,7 +46,24 @@ function formatDate(date: Date | string): string {
 
 export function SourceReaderClient({ dossierId, source, allSources }: Props) {
   const [inspectorOpen, setInspectorOpen] = useState(true);
+  const [selectedHighlightId, setSelectedHighlightId] = useState<string | null>(null);
   const readingAreaRef = useRef<HTMLDivElement>(null);
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
+
+  const scrollToHighlight = useCallback((id: string) => {
+    setSelectedHighlightId(id);
+    const mark = readingAreaRef.current?.querySelector(
+      `[data-highlight-id="${id}"]`,
+    );
+    if (mark && scrollContainerRef.current) {
+      const container = scrollContainerRef.current;
+      const markRect = mark.getBoundingClientRect();
+      const containerRect = container.getBoundingClientRect();
+      const scrollTop =
+        container.scrollTop + (markRect.top - containerRect.top) - containerRect.height / 3;
+      container.scrollTo({ top: scrollTop, behavior: "smooth" });
+    }
+  }, []);
 
   const gutterMarks = useMemo(() => {
     const textLength = source.raw_text?.length ?? 1;
@@ -174,9 +184,10 @@ export function SourceReaderClient({ dossierId, source, allSources }: Props) {
           overflow: "hidden",
         }}
       >
-        <EvidenceGutter marks={gutterMarks} />
+        <EvidenceGutter marks={gutterMarks} onMarkClick={scrollToHighlight} />
 
         <div
+          ref={scrollContainerRef}
           style={{
             flex: 1,
             overflowY: "auto",
@@ -251,6 +262,8 @@ export function SourceReaderClient({ dossierId, source, allSources }: Props) {
                 <HighlightedText
                   text={source.raw_text}
                   highlights={source.highlights}
+                  selectedHighlightId={selectedHighlightId}
+                  onHighlightClick={setSelectedHighlightId}
                 />
                 <SelectionToolbar
                   sourceId={source.id}
@@ -448,44 +461,12 @@ export function SourceReaderClient({ dossierId, source, allSources }: Props) {
               }}
             >
               {source.highlights.map((h) => (
-                <div
+                <HighlightCard
                   key={h.id}
-                  style={{
-                    padding: "0.5rem",
-                    borderLeft:
-                      "var(--border-rule) solid var(--color-accent-ink)",
-                    backgroundColor: "var(--color-highlight-wash)",
-                    borderRadius: "0 var(--radius-xs) var(--radius-xs) 0",
-                  }}
-                >
-                  <p
-                    style={{
-                      fontFamily: "var(--font-sans)",
-                      fontSize: "0.8125rem",
-                      color: "var(--color-ink-primary)",
-                      lineHeight: 1.45,
-                      fontStyle: "italic",
-                      maxWidth: "none",
-                    }}
-                  >
-                    &ldquo;
-                    {h.quote_text.length > 120
-                      ? h.quote_text.slice(0, 120) + "…"
-                      : h.quote_text}
-                    &rdquo;
-                  </p>
-                  <span
-                    style={{
-                      fontFamily: "var(--font-mono)",
-                      fontSize: "0.6875rem",
-                      color: "var(--color-ink-secondary)",
-                      marginTop: "0.25rem",
-                      display: "block",
-                    }}
-                  >
-                    {LABEL_LABELS[h.label] ?? h.label}
-                  </span>
-                </div>
+                  highlight={h}
+                  isSelected={h.id === selectedHighlightId}
+                  onClick={() => scrollToHighlight(h.id)}
+                />
               ))}
             </div>
           )}
