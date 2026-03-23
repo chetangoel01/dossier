@@ -368,3 +368,7 @@ textarea.input {
   background-color: var(--color-border);
   border: none;
 }
+
+.source-status-menu-item[data-highlighted] {
+  background-color: var(--color-bg-selected);
+}
