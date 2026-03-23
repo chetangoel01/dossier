@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useTransition, useMemo } from "react";
+import Link from "next/link";
 import { CaptureSourceModal } from "./CaptureSourceModal";
 import { SourceFilterBar } from "./SourceFilterBar";
 import { SourceStatusMenu } from "./SourceStatusMenu";
@@ -282,7 +283,15 @@ export function SourcesClient({ dossierId, sources }: Props) {
                       whiteSpace: "nowrap",
                     }}
                   >
-                    {source.title}
+                    <Link
+                      href={`/dossiers/${dossierId}/sources/${source.id}`}
+                      style={{
+                        color: "var(--color-ink-primary)",
+                        textDecoration: "none",
+                      }}
+                    >
+                      {source.title}
+                    </Link>
                     {source._count.highlights > 0 && (
                       <span
                         style={{
