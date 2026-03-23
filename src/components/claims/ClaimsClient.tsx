@@ -53,6 +53,7 @@ export function ClaimsClient({ dossierId, claims }: Props) {
   };
 
   const handleDelete = (claimId: string) => {
+    if (!window.confirm("Delete this claim? This cannot be undone.")) return;
     startTransition(async () => {
       await deleteClaim(claimId);
       router.refresh();

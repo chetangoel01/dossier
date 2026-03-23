@@ -346,8 +346,6 @@ export function CreateClaimModal({
                       width: "100%",
                       textAlign: "left",
                       padding: "0.5rem 0.625rem",
-                      borderBottom:
-                        "var(--border-hairline) solid var(--color-border)",
                       backgroundColor: isSelected
                         ? "var(--color-highlight-wash)"
                         : "transparent",
