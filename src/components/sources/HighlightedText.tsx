@@ -37,7 +37,15 @@ export function HighlightedText({ text, highlights }: HighlightedTextProps) {
     for (const hl of sorted) {
       const start = Math.max(hl.start_offset, 0);
       const end = Math.min(hl.end_offset, text.length);
-      if (start >= end || start < cursor) continue;
+      if (start < cursor) {
+        // Truncate overlapping portion — render only the non-overlapping tail
+        const adjustedStart = cursor;
+        if (adjustedStart >= end) continue;
+        result.push({ text: text.slice(adjustedStart, end), highlightId: hl.id, label: hl.label });
+        cursor = end;
+        continue;
+      }
+      if (start >= end) continue;
 
       // Add unhighlighted text before this highlight
       if (cursor < start) {
