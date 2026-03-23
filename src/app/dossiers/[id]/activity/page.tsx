@@ -7,21 +7,10 @@ export const metadata: Metadata = {
 export default function ActivityPage() {
   return (
     <div
-      style={{
-        padding: "2rem var(--space-gutter)",
-        maxWidth: "760px",
-        marginInline: "auto",
-        width: "100%",
-      }}
+      className="w-full max-w-[760px] mx-auto py-8"
+      style={{ paddingInline: "var(--space-gutter)" }}
     >
-      <div
-        style={{
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "space-between",
-          marginBottom: "1.5rem",
-        }}
-      >
+      <div className="flex items-center justify-between mb-6">
         <h2
           style={{
             fontFamily: "var(--font-display)",
@@ -33,20 +22,13 @@ export default function ActivityPage() {
         </h2>
       </div>
 
-      <div
-        className="panel"
-        style={{
-          padding: "3rem 2rem",
-          textAlign: "center",
-        }}
-      >
+      <div className="panel py-12 px-8 text-center">
         <p
+          className="mb-2 max-w-none"
           style={{
             fontFamily: "var(--font-mono)",
             fontSize: "0.8125rem",
             color: "var(--color-ink-secondary)",
-            marginBottom: "0.5rem",
-            maxWidth: "none",
           }}
         >
           No activity recorded.

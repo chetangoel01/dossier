@@ -1,25 +1,49 @@
 import type { Metadata } from "next";
-import { redirect } from "next/navigation";
-import { auth } from "@/auth";
-import { getClaims } from "@/server/queries/claims";
-import { ClaimsClient } from "@/components/claims/ClaimsClient";
 
 export const metadata: Metadata = {
   title: "Claims — Dossier",
 };
 
-interface ClaimsPageProps {
-  params: Promise<{ id: string }>;
-}
+export default function ClaimsPage() {
+  return (
+    <div
+      className="w-full max-w-[960px] mx-auto py-8"
+      style={{ paddingInline: "var(--space-gutter)" }}
+    >
+      <div className="flex items-center justify-between mb-6">
+        <h2
+          style={{
+            fontFamily: "var(--font-display)",
+            fontSize: "1.125rem",
+            color: "var(--color-ink-primary)",
+          }}
+        >
+          Claims
+        </h2>
+      </div>
 
-export default async function ClaimsPage({ params }: ClaimsPageProps) {
-  const session = await auth();
-  if (!session?.user?.id) {
-    redirect("/login");
-  }
-
-  const { id } = await params;
-  const claims = await getClaims(id, session.user.id);
-
-  return <ClaimsClient dossierId={id} claims={claims} />;
+      <div className="panel py-12 px-8 text-center">
+        <p
+          className="mb-2 max-w-none"
+          style={{
+            fontFamily: "var(--font-mono)",
+            fontSize: "0.8125rem",
+            color: "var(--color-ink-secondary)",
+          }}
+        >
+          No claims recorded.
+        </p>
+        <p
+          style={{
+            fontFamily: "var(--font-sans)",
+            fontSize: "0.875rem",
+            color: "var(--color-ink-secondary)",
+            fontStyle: "italic",
+          }}
+        >
+          Claims are defensible assertions linked to source evidence. They will appear here once added.
+        </p>
+      </div>
+    </div>
+  );
 }

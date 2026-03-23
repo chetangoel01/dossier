@@ -27,33 +27,25 @@ export default async function DossierLayout({
 
   return (
     <div
-      style={{
-        display: "flex",
-        flexDirection: "column",
-        minHeight: "100dvh",
-        backgroundColor: "var(--color-bg-canvas)",
-      }}
+      className="flex flex-col min-h-dvh"
+      style={{ backgroundColor: "var(--color-bg-canvas)" }}
     >
       {/* Workspace header */}
       <header
+        className="flex items-center gap-4 shrink-0"
         style={{
           backgroundColor: "var(--color-bg-panel)",
           borderBottom: "var(--border-thin) solid var(--color-border)",
           padding: "0.75rem var(--space-gutter)",
-          display: "flex",
-          alignItems: "center",
-          gap: "1rem",
-          flexShrink: 0,
         }}
       >
         <Link
           href="/dossiers"
+          className="shrink-0 no-underline"
           style={{
             fontFamily: "var(--font-mono)",
             fontSize: "0.75rem",
             color: "var(--color-ink-secondary)",
-            textDecoration: "none",
-            flexShrink: 0,
           }}
           aria-label="Back to all dossiers"
         >
@@ -61,34 +53,30 @@ export default async function DossierLayout({
         </Link>
 
         <div
+          className="h-4 shrink-0"
           style={{
             width: "var(--border-thin)",
-            height: "1rem",
             backgroundColor: "var(--color-border)",
-            flexShrink: 0,
           }}
           aria-hidden
         />
 
-        <div style={{ display: "flex", alignItems: "baseline", gap: "0.75rem", minWidth: 0 }}>
+        <div className="flex items-baseline gap-3 min-w-0">
           <h1
+            className="overflow-hidden text-ellipsis whitespace-nowrap"
             style={{
               fontFamily: "var(--font-display)",
               fontSize: "1.0625rem",
               fontWeight: 600,
               color: "var(--color-ink-primary)",
               letterSpacing: "-0.01em",
-              overflow: "hidden",
-              textOverflow: "ellipsis",
-              whiteSpace: "nowrap",
             }}
           >
             {dossier.title}
           </h1>
 
           <span
-            className="chip"
-            style={{ flexShrink: 0 }}
+            className="chip shrink-0"
           >
             {dossier.status}
           </span>
@@ -99,35 +87,19 @@ export default async function DossierLayout({
       <WorkspaceTabBar dossierId={id} />
 
       {/* Content + inspector region */}
-      <div
-        style={{
-          flex: 1,
-          display: "flex",
-          minHeight: 0,
-        }}
-      >
+      <div className="flex flex-1 min-h-0">
         {/* Main content region */}
-        <main
-          style={{
-            flex: 1,
-            display: "flex",
-            flexDirection: "column",
-            minHeight: 0,
-          }}
-        >
+        <main className="flex flex-col flex-1 min-h-0">
           {children}
         </main>
 
         {/* Right inspector slot — collapsed by default, populated per-tab */}
         <aside
           data-slot="inspector"
+          className="hidden w-[22rem] shrink-0 overflow-y-auto"
           style={{
-            display: "none",
-            width: "22rem",
-            flexShrink: 0,
             borderLeft: "var(--border-thin) solid var(--color-border)",
             backgroundColor: "var(--color-bg-panel)",
-            overflowY: "auto",
           }}
         />
       </div>
