@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { updateHighlight } from "@/server/actions/highlights";
 import { useRouter } from "next/navigation";
 import type { HighlightLabel } from "@prisma/client";
@@ -53,6 +53,21 @@ export function HighlightCard({
   const [showLabelMenu, setShowLabelMenu] = useState(false);
   const [saving, setSaving] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const labelMenuRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!showLabelMenu) return;
+    const handleMouseDown = (e: MouseEvent) => {
+      if (
+        labelMenuRef.current &&
+        !labelMenuRef.current.contains(e.target as Node)
+      ) {
+        setShowLabelMenu(false);
+      }
+    };
+    document.addEventListener("mousedown", handleMouseDown);
+    return () => document.removeEventListener("mousedown", handleMouseDown);
+  }, [showLabelMenu]);
 
   const labelColor =
     LABEL_COLORS[highlight.label] ?? "var(--color-accent-ink)";
@@ -124,6 +139,7 @@ export function HighlightCard({
 
       {/* Label chip */}
       <div
+        ref={labelMenuRef}
         style={{
           marginTop: "0.375rem",
           display: "flex",
