@@ -24,13 +24,11 @@ export function WorkspaceTabBar({ dossierId }: WorkspaceTabBarProps) {
     <nav
       role="tablist"
       aria-label="Dossier workspace tabs"
+      className="flex overflow-x-auto"
       style={{
-        display: "flex",
-        gap: 0,
         borderBottom: "var(--border-thin) solid var(--color-border)",
         backgroundColor: "var(--color-bg-panel)",
         paddingInline: "var(--space-gutter)",
-        overflowX: "auto",
         scrollbarWidth: "none",
       }}
     >
@@ -44,9 +42,8 @@ export function WorkspaceTabBar({ dossierId }: WorkspaceTabBarProps) {
             href={href}
             role="tab"
             aria-selected={isActive}
+            className="inline-flex items-center whitespace-nowrap no-underline -mb-px"
             style={{
-              display: "inline-flex",
-              alignItems: "center",
               padding: "0.625rem 1rem",
               fontFamily: "var(--font-sans)",
               fontSize: "0.875rem",
@@ -54,12 +51,9 @@ export function WorkspaceTabBar({ dossierId }: WorkspaceTabBarProps) {
               color: isActive
                 ? "var(--color-ink-primary)"
                 : "var(--color-ink-secondary)",
-              textDecoration: "none",
               borderBottom: isActive
                 ? "var(--border-rule) solid var(--color-accent-ink)"
                 : "var(--border-rule) solid transparent",
-              marginBottom: "-1px",
-              whiteSpace: "nowrap",
               transition: "color var(--duration-fast) ease, border-color var(--duration-fast) ease",
             }}
           >

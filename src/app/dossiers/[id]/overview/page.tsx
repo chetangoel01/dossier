@@ -7,37 +7,20 @@ export const metadata: Metadata = {
 export default function OverviewPage() {
   return (
     <div
-      style={{
-        padding: "2rem var(--space-gutter)",
-        maxWidth: "960px",
-        marginInline: "auto",
-        width: "100%",
-      }}
+      className="w-full max-w-[960px] mx-auto py-8"
+      style={{ paddingInline: "var(--space-gutter)" }}
     >
-      <div
-        style={{
-          display: "grid",
-          gridTemplateColumns: "1fr 1fr",
-          gap: "1rem",
-          marginBottom: "1rem",
-        }}
-      >
+      <div className="grid grid-cols-2 gap-4 mb-4">
         {/* Summary panel */}
-        <div
-          className="panel"
-          style={{
-            gridColumn: "1 / -1",
-            padding: "1.5rem",
-          }}
-        >
+        <div className="panel col-span-full p-6">
           <p
+            className="mb-2"
             style={{
               fontFamily: "var(--font-mono)",
               fontSize: "0.6875rem",
               textTransform: "uppercase",
               letterSpacing: "0.08em",
               color: "var(--color-ink-secondary)",
-              marginBottom: "0.5rem",
             }}
           >
             Research Summary
@@ -84,26 +67,26 @@ export default function OverviewPage() {
 
 function EmptyCard({ label, message }: { label: string; message: string }) {
   return (
-    <div className="panel" style={{ padding: "1.25rem 1.5rem" }}>
+    <div className="panel py-5 px-6">
       <p
+        className="mb-3"
         style={{
           fontFamily: "var(--font-mono)",
           fontSize: "0.6875rem",
           textTransform: "uppercase",
           letterSpacing: "0.08em",
           color: "var(--color-ink-secondary)",
-          marginBottom: "0.75rem",
         }}
       >
         {label}
       </p>
       <p
+        className="max-w-none"
         style={{
           fontFamily: "var(--font-sans)",
           fontSize: "0.875rem",
           color: "var(--color-ink-secondary)",
           fontStyle: "italic",
-          maxWidth: "none",
         }}
       >
         {message}
