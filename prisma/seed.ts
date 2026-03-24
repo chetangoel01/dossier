@@ -1,6 +1,7 @@
 import { PrismaClient } from "@prisma/client";
 import { PrismaPg } from "@prisma/adapter-pg";
 import { Pool } from "pg";
+import bcrypt from "bcryptjs";
 
 const pool = new Pool({ connectionString: process.env.DATABASE_URL });
 const adapter = new PrismaPg(pool);
@@ -14,10 +15,13 @@ async function main() {
 
   // ─── User ────────────────────────────────────────────────────────────────────
 
+  const passwordHash = await bcrypt.hash("password", 10);
+
   const user = await prisma.user.create({
     data: {
       email: "demo@dossier.local",
       name: "Alex Mercer",
+      password_hash: passwordHash,
     },
   });
 
