@@ -111,13 +111,7 @@ function InlineEditForm({
   };
 
   return (
-    <div
-      style={{
-        display: "flex",
-        flexDirection: "column",
-        gap: "0.5rem",
-      }}
-    >
+    <div className="flex flex-col gap-2">
       <textarea
         ref={inputRef}
         className="input"
@@ -141,7 +135,7 @@ function InlineEditForm({
           Confidence
           <input
             type="number"
-            className="input"
+            className="input inline-block ml-1.5 py-0.5 px-1.5"
             min={0}
             max={100}
             value={confidence}
@@ -150,9 +144,6 @@ function InlineEditForm({
             style={{
               width: "5rem",
               fontSize: "0.75rem",
-              padding: "0.125rem 0.375rem",
-              marginLeft: "0.375rem",
-              display: "inline-block",
             }}
           />
         </label>
@@ -183,11 +174,11 @@ function InlineEditForm({
           Cancel
         </button>
         <span
+          className="ml-auto"
           style={{
             fontFamily: "var(--font-mono)",
             fontSize: "0.625rem",
             color: "var(--color-ink-secondary)",
-            marginLeft: "auto",
           }}
         >
           ⌘+Enter to save
@@ -231,9 +222,8 @@ function ClaimCard({
 
   return (
     <div
-      className="panel"
+      className={`panel ${compact ? "py-3 px-4" : "py-4 px-5"}`}
       style={{
-        padding: compact ? "0.75rem 1rem" : "1rem 1.25rem",
         borderLeft: "var(--border-rule) solid var(--color-accent-ink)",
       }}
     >
@@ -244,24 +234,15 @@ function ClaimCard({
           onCancel={onCancelEdit}
         />
       ) : (
-        <div
-          style={{
-            display: "flex",
-            alignItems: "flex-start",
-            justifyContent: "space-between",
-            gap: "0.75rem",
-          }}
-        >
-          <div style={{ flex: 1, minWidth: 0 }}>
+        <div className="flex items-start justify-between gap-3">
+          <div className="flex-1 min-w-0">
             <p
+              className="mb-2 max-w-none cursor-pointer"
               style={{
                 fontFamily: "var(--font-sans)",
                 fontSize: compact ? "0.8125rem" : "0.9375rem",
                 color: "var(--color-ink-primary)",
                 lineHeight: 1.5,
-                marginBottom: "0.5rem",
-                maxWidth: "none",
-                cursor: "pointer",
               }}
               onClick={() => onEdit(claim.id)}
               title="Click to edit"
@@ -277,11 +258,9 @@ function ClaimCard({
                   onChange={(e) =>
                     onStatusChange(claim.id, e.target.value as ClaimStatus)
                   }
-                  className="input"
+                  className="input py-0.5 px-1.5 w-auto"
                   style={{
                     fontSize: "0.6875rem",
-                    padding: "0.125rem 0.375rem",
-                    width: "auto",
                   }}
                 >
                   {STATUS_OPTIONS.map((opt) => (
@@ -344,14 +323,13 @@ function ClaimCard({
             {/* Notes */}
             {!compact && claim.notes && (
               <p
+                className="mt-2 max-w-none"
                 style={{
                   fontFamily: "var(--font-sans)",
                   fontSize: "0.8125rem",
                   color: "var(--color-ink-secondary)",
                   lineHeight: 1.45,
-                  marginTop: "0.5rem",
                   fontStyle: "italic",
-                  maxWidth: "none",
                 }}
               >
                 {claim.notes}
@@ -365,9 +343,8 @@ function ClaimCard({
                   <Link
                     key={ch.highlight.id}
                     href={`/dossiers/${dossierId}/sources/${ch.highlight.source.id}`}
+                    className="block py-1.5 px-2"
                     style={{
-                      display: "block",
-                      padding: "0.375rem 0.5rem",
                       backgroundColor: "var(--color-highlight-wash)",
                       borderRadius: "var(--radius-xs)",
                       textDecoration: "none",
@@ -376,13 +353,13 @@ function ClaimCard({
                     }}
                   >
                     <p
+                      className="max-w-none"
                       style={{
                         fontFamily: "var(--font-sans)",
                         fontSize: "0.75rem",
                         color: "var(--color-ink-primary)",
                         fontStyle: "italic",
                         lineHeight: 1.35,
-                        maxWidth: "none",
                       }}
                     >
                       &ldquo;
@@ -392,12 +369,11 @@ function ClaimCard({
                       &rdquo;
                     </p>
                     <span
+                      className="mt-0.5 block"
                       style={{
                         fontFamily: "var(--font-mono)",
                         fontSize: "0.625rem",
                         color: "var(--color-ink-secondary)",
-                        marginTop: "0.125rem",
-                        display: "block",
                       }}
                     >
                       {ch.highlight.source.title}
@@ -485,14 +461,7 @@ function BoardView({
   }, [claims]);
 
   return (
-    <div
-      style={{
-        display: "grid",
-        gridTemplateColumns: "repeat(4, 1fr)",
-        gap: "0.75rem",
-        alignItems: "start",
-      }}
-    >
+    <div className="grid grid-cols-4 gap-3 items-start">
       {STATUS_OPTIONS.map((col) => (
         <div key={col.value}>
           {/* Column header */}
@@ -525,9 +494,8 @@ function BoardView({
           <div className="flex flex-col gap-2">
             {columns[col.value].length === 0 ? (
               <div
+                className="py-6 px-3 text-center"
                 style={{
-                  padding: "1.5rem 0.75rem",
-                  textAlign: "center",
                   borderRadius: "var(--radius-md)",
                   border:
                     "var(--border-thin) dashed var(--color-border)",
@@ -626,11 +594,10 @@ export function ClaimsClient({ dossierId, claims }: Props) {
 
   return (
     <div
+      className="mx-auto w-full"
       style={{
         padding: "2rem var(--space-gutter)",
         maxWidth: viewMode === "board" ? "1200px" : "960px",
-        marginInline: "auto",
-        width: "100%",
         opacity: isPending ? 0.7 : 1,
         transition: "opacity var(--duration-fast) ease",
       }}
@@ -639,21 +606,21 @@ export function ClaimsClient({ dossierId, claims }: Props) {
       <div className="flex items-center justify-between mb-4">
         <div>
           <h2
+            className="mb-1"
             style={{
               fontFamily: "var(--font-display)",
               fontSize: "1.125rem",
               color: "var(--color-ink-primary)",
-              marginBottom: "0.25rem",
             }}
           >
             Claims
           </h2>
           <p
+            className="max-w-none"
             style={{
               fontFamily: "var(--font-mono)",
               fontSize: "0.75rem",
               color: "var(--color-ink-secondary)",
-              maxWidth: "none",
             }}
           >
             {claims.length} claim{claims.length !== 1 ? "s" : ""}
@@ -663,10 +630,8 @@ export function ClaimsClient({ dossierId, claims }: Props) {
 
         {/* View toggle */}
         <div
+          className="flex gap-0.5 p-0.5"
           style={{
-            display: "flex",
-            gap: "0.125rem",
-            padding: "0.125rem",
             backgroundColor: "var(--color-bg-rail)",
             borderRadius: "var(--radius-sm)",
           }}
@@ -738,20 +703,13 @@ export function ClaimsClient({ dossierId, claims }: Props) {
 
       {/* Content */}
       {claims.length === 0 ? (
-        <div
-          className="panel"
-          style={{
-            padding: "3rem 2rem",
-            textAlign: "center",
-          }}
-        >
+        <div className="panel py-12 px-8 text-center">
           <p
+            className="mb-2 max-w-none"
             style={{
               fontFamily: "var(--font-mono)",
               fontSize: "0.8125rem",
               color: "var(--color-ink-secondary)",
-              marginBottom: "0.5rem",
-              maxWidth: "none",
             }}
           >
             No claims recorded.
@@ -780,19 +738,13 @@ export function ClaimsClient({ dossierId, claims }: Props) {
           onCancelEdit={() => setEditingId(null)}
         />
       ) : filtered.length === 0 ? (
-        <div
-          className="panel"
-          style={{
-            padding: "2rem",
-            textAlign: "center",
-          }}
-        >
+        <div className="panel p-8 text-center">
           <p
+            className="max-w-none"
             style={{
               fontFamily: "var(--font-mono)",
               fontSize: "0.8125rem",
               color: "var(--color-ink-secondary)",
-              maxWidth: "none",
             }}
           >
             No claims match the current filter.
