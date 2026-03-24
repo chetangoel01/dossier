@@ -17,7 +17,7 @@ export async function getClaims(dossierId: string, userId: string) {
       created_at: true,
       updated_at: true,
       _count: {
-        select: { highlights: true },
+        select: { highlights: true, entities: true },
       },
       highlights: {
         select: {
