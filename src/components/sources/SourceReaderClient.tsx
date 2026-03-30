@@ -1,20 +1,28 @@
 "use client";
 
-import { useState, useMemo, useRef } from "react";
+import { useEffect, useState, useMemo, useRef } from "react";
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import { EvidenceGutter } from "./EvidenceGutter";
 import { HighlightedText } from "./HighlightedText";
 import { SelectionToolbar } from "./SelectionToolbar";
 import { CreateClaimModal } from "@/components/claims/CreateClaimModal";
-import type { SourceReaderData, SourceListItem } from "@/server/queries/sources";
+import type {
+  SourceReaderData,
+  SourceListItem,
+} from "@/server/queries/sources";
 import type { SourceClaimItem } from "@/server/queries/claims";
-import type { EntityListItem } from "@/server/queries/entities";
+import type {
+  EntityBacklinkItem,
+  EntityListItem,
+} from "@/server/queries/entities";
 import { dedupeById } from "@/lib/entities";
 import { EntityChip } from "@/components/entities/EntityChip";
 import {
   EntityLinkModal,
   type LinkTarget,
 } from "@/components/entities/EntityLinkModal";
+import { EntityDetailDrawer } from "@/components/entities/EntityDetailDrawer";
 
 interface Props {
   dossierId: string;
@@ -22,6 +30,7 @@ interface Props {
   allSources: SourceListItem[];
   claims: SourceClaimItem[];
   entities: EntityListItem[];
+  entityBacklinks: EntityBacklinkItem[];
 }
 
 const TYPE_LABELS: Record<string, string> = {
@@ -82,12 +91,19 @@ export function SourceReaderClient({
   allSources,
   claims,
   entities,
+  entityBacklinks,
 }: Props) {
+  const searchParams = useSearchParams();
   const [inspectorOpen, setInspectorOpen] = useState(true);
   const readingAreaRef = useRef<HTMLDivElement>(null);
   const [claimModalOpen, setClaimModalOpen] = useState(false);
-  const [preselectedHighlightIds, setPreselectedHighlightIds] = useState<string[]>([]);
+  const [preselectedHighlightIds, setPreselectedHighlightIds] = useState<
+    string[]
+  >([]);
   const [entityTarget, setEntityTarget] = useState<LinkTarget | null>(null);
+  const [selectedEntityId, setSelectedEntityId] = useState<string | null>(null);
+
+  const activeHighlightId = searchParams.get("highlight");
 
   const openClaimModal = (highlightId?: string) => {
     setPreselectedHighlightIds(highlightId ? [highlightId] : []);
@@ -126,11 +142,31 @@ export function SourceReaderClient({
       dedupeById([
         ...source.mentions.map((mention) => mention.entity),
         ...source.highlights.flatMap((highlight) =>
-          highlight.mentions.map((mention) => mention.entity),
+          highlight.mentions.map((mention) => mention.entity)
         ),
       ]),
-    [source.highlights, source.mentions],
+    [source.highlights, source.mentions]
   );
+
+  const selectedEntity = useMemo(
+    () =>
+      entityBacklinks.find((entity) => entity.id === selectedEntityId) ?? null,
+    [entityBacklinks, selectedEntityId]
+  );
+
+  useEffect(() => {
+    if (!activeHighlightId) {
+      return;
+    }
+
+    setInspectorOpen(true);
+
+    const target = readingAreaRef.current?.querySelector<HTMLElement>(
+      `[data-highlight-id="${activeHighlightId}"]`
+    );
+
+    target?.scrollIntoView({ behavior: "smooth", block: "center" });
+  }, [activeHighlightId]);
 
   return (
     <div
@@ -193,8 +229,7 @@ export function SourceReaderClient({
                   borderLeft: isActive
                     ? "var(--border-rule) solid var(--color-accent-ink)"
                     : "var(--border-rule) solid transparent",
-                  transition:
-                    "background-color var(--duration-fast) ease",
+                  transition: "background-color var(--duration-fast) ease",
                 }}
               >
                 <span
@@ -224,8 +259,7 @@ export function SourceReaderClient({
                   }}
                 >
                   {TYPE_LABELS[s.type] ?? s.type}
-                  {s._count.highlights > 0 &&
-                    ` · ${s._count.highlights} hl`}
+                  {s._count.highlights > 0 && ` · ${s._count.highlights} hl`}
                 </span>
               </Link>
             );
@@ -253,6 +287,7 @@ export function SourceReaderClient({
           }}
         >
           <article
+            id="source-context"
             style={{
               width: "100%",
               maxWidth: "var(--space-content-max)",
@@ -287,12 +322,9 @@ export function SourceReaderClient({
               }}
             >
               <span
-                className={
-                  STATUS_CHIP_CLASS[source.source_status] ?? "chip"
-                }
+                className={STATUS_CHIP_CLASS[source.source_status] ?? "chip"}
               >
-                {STATUS_LABELS[source.source_status] ??
-                  source.source_status}
+                {STATUS_LABELS[source.source_status] ?? source.source_status}
               </span>
               <span>{TYPE_LABELS[source.type] ?? source.type}</span>
               {source.author && <span>by {source.author}</span>}
@@ -319,6 +351,7 @@ export function SourceReaderClient({
                 <HighlightedText
                   text={source.raw_text}
                   highlights={source.highlights}
+                  activeHighlightId={activeHighlightId}
                 />
                 <SelectionToolbar
                   sourceId={source.id}
@@ -416,12 +449,23 @@ export function SourceReaderClient({
 
         {/* Metadata section */}
         <InspectorSection title="Metadata">
-          <MetaRow label="Type" value={TYPE_LABELS[source.type] ?? source.type} />
-          <MetaRow label="Status" value={STATUS_LABELS[source.source_status] ?? source.source_status} />
+          <MetaRow
+            label="Type"
+            value={TYPE_LABELS[source.type] ?? source.type}
+          />
+          <MetaRow
+            label="Status"
+            value={STATUS_LABELS[source.source_status] ?? source.source_status}
+          />
           {source.author && <MetaRow label="Author" value={source.author} />}
-          {source.publisher && <MetaRow label="Publisher" value={source.publisher} />}
+          {source.publisher && (
+            <MetaRow label="Publisher" value={source.publisher} />
+          )}
           {source.published_at && (
-            <MetaRow label="Published" value={formatDate(source.published_at)} />
+            <MetaRow
+              label="Published"
+              value={formatDate(source.published_at)}
+            />
           )}
           <MetaRow label="Captured" value={formatDate(source.captured_at)} />
           {source.credibility_rating != null && (
@@ -491,10 +535,7 @@ export function SourceReaderClient({
         )}
 
         {/* Highlights section */}
-        <InspectorSection
-          title="Highlights"
-          count={source.highlights.length}
-        >
+        <InspectorSection title="Highlights" count={source.highlights.length}>
           {source.highlights.length === 0 ? (
             <p
               style={{
@@ -515,122 +556,138 @@ export function SourceReaderClient({
                 gap: "0.5rem",
               }}
             >
-              {source.highlights.map((h) => (
-                <div
-                  key={h.id}
-                  style={{
-                    padding: "0.5rem",
-                    borderLeft:
-                      "var(--border-rule) solid var(--color-accent-ink)",
-                    backgroundColor: "var(--color-highlight-wash)",
-                    borderRadius: "0 var(--radius-xs) var(--radius-xs) 0",
-                  }}
-                >
-                  <p
-                    style={{
-                      fontFamily: "var(--font-sans)",
-                      fontSize: "0.8125rem",
-                      color: "var(--color-ink-primary)",
-                      lineHeight: 1.45,
-                      fontStyle: "italic",
-                      maxWidth: "none",
-                    }}
-                  >
-                    &ldquo;
-                    {h.quote_text.length > 120
-                      ? h.quote_text.slice(0, 120) + "…"
-                      : h.quote_text}
-                    &rdquo;
-                  </p>
-                  <div
-                    style={{
-                      display: "flex",
-                      alignItems: "flex-start",
-                      justifyContent: "space-between",
-                      marginTop: "0.25rem",
-                      gap: "0.75rem",
-                    }}
-                  >
-                    <div style={{ minWidth: 0, flex: 1 }}>
-                      <span
-                        style={{
-                          fontFamily: "var(--font-mono)",
-                          fontSize: "0.6875rem",
-                          color: "var(--color-ink-secondary)",
-                        }}
-                      >
-                        {LABEL_LABELS[h.label] ?? h.label}
-                      </span>
+              {source.highlights.map((h) => {
+                const isActiveHighlight = activeHighlightId === h.id;
 
-                      {h.mentions.length > 0 && (
-                        <div
+                return (
+                  <div
+                    key={h.id}
+                    style={{
+                      padding: "0.5rem",
+                      borderLeft:
+                        "var(--border-rule) solid var(--color-accent-ink)",
+                      backgroundColor: "var(--color-highlight-wash)",
+                      borderRadius: "0 var(--radius-xs) var(--radius-xs) 0",
+                      boxShadow: isActiveHighlight
+                        ? "0 0 0 2px rgba(24, 78, 119, 0.14)"
+                        : "none",
+                      transition: "box-shadow var(--duration-fast) ease",
+                    }}
+                  >
+                    <p
+                      style={{
+                        fontFamily: "var(--font-sans)",
+                        fontSize: "0.8125rem",
+                        color: "var(--color-ink-primary)",
+                        lineHeight: 1.45,
+                        fontStyle: "italic",
+                        maxWidth: "none",
+                      }}
+                    >
+                      &ldquo;
+                      {h.quote_text.length > 120
+                        ? h.quote_text.slice(0, 120) + "…"
+                        : h.quote_text}
+                      &rdquo;
+                    </p>
+                    <div
+                      style={{
+                        display: "flex",
+                        alignItems: "flex-start",
+                        justifyContent: "space-between",
+                        marginTop: "0.25rem",
+                        gap: "0.75rem",
+                      }}
+                    >
+                      <div style={{ minWidth: 0, flex: 1 }}>
+                        <span
                           style={{
-                            display: "flex",
-                            flexWrap: "wrap",
-                            gap: "0.375rem",
-                            marginTop: "0.5rem",
+                            fontFamily: "var(--font-mono)",
+                            fontSize: "0.6875rem",
+                            color: "var(--color-ink-secondary)",
                           }}
                         >
-                          {h.mentions.map((mention) => (
-                            <EntityChip
-                              key={mention.id}
-                              entity={mention.entity}
-                              compact
-                            />
-                          ))}
-                        </div>
-                      )}
-                    </div>
+                          {LABEL_LABELS[h.label] ?? h.label}
+                        </span>
 
-                    <div className="flex items-center gap-1.5 shrink-0">
-                      <button
-                        type="button"
-                        onClick={() => openHighlightEntityModal(h.id, h.quote_text)}
-                        style={{
-                          fontFamily: "var(--font-mono)",
-                          fontSize: "0.625rem",
-                          color: "var(--color-accent-ink)",
-                          backgroundColor: "transparent",
-                          border: "none",
-                          cursor: "pointer",
-                          padding: "0.125rem 0.25rem",
-                          borderRadius: "var(--radius-xs)",
-                          letterSpacing: "0.02em",
-                        }}
-                      >
-                        + Entity
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => openClaimModal(h.id)}
-                        style={{
-                          fontFamily: "var(--font-mono)",
-                          fontSize: "0.625rem",
-                          color: "var(--color-accent-ink)",
-                          backgroundColor: "transparent",
-                          border: "none",
-                          cursor: "pointer",
-                          padding: "0.125rem 0.25rem",
-                          borderRadius: "var(--radius-xs)",
-                          letterSpacing: "0.02em",
-                          transition:
-                            "background-color var(--duration-fast) ease",
-                        }}
-                        onMouseEnter={(e) => {
-                          (e.currentTarget as HTMLButtonElement).style.backgroundColor =
-                            "var(--color-bg-selected)";
-                        }}
-                        onMouseLeave={(e) => {
-                          (e.currentTarget as HTMLButtonElement).style.backgroundColor =
-                            "transparent";
-                        }}
-                      >
-                        + Claim
-                      </button>
+                        {h.mentions.length > 0 && (
+                          <div
+                            style={{
+                              display: "flex",
+                              flexWrap: "wrap",
+                              gap: "0.375rem",
+                              marginTop: "0.5rem",
+                            }}
+                          >
+                            {h.mentions.map((mention) => (
+                              <EntityChip
+                                key={mention.id}
+                                entity={mention.entity}
+                                compact
+                                onClick={() =>
+                                  setSelectedEntityId(mention.entity.id)
+                                }
+                              />
+                            ))}
+                          </div>
+                        )}
+                      </div>
+
+                      <div className="flex items-center gap-1.5 shrink-0">
+                        <button
+                          type="button"
+                          onClick={() =>
+                            openHighlightEntityModal(h.id, h.quote_text)
+                          }
+                          style={{
+                            fontFamily: "var(--font-mono)",
+                            fontSize: "0.625rem",
+                            color: "var(--color-accent-ink)",
+                            backgroundColor: "transparent",
+                            border: "none",
+                            cursor: "pointer",
+                            padding: "0.125rem 0.25rem",
+                            borderRadius: "var(--radius-xs)",
+                            letterSpacing: "0.02em",
+                          }}
+                        >
+                          + Entity
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => openClaimModal(h.id)}
+                          style={{
+                            fontFamily: "var(--font-mono)",
+                            fontSize: "0.625rem",
+                            color: "var(--color-accent-ink)",
+                            backgroundColor: "transparent",
+                            border: "none",
+                            cursor: "pointer",
+                            padding: "0.125rem 0.25rem",
+                            borderRadius: "var(--radius-xs)",
+                            letterSpacing: "0.02em",
+                            transition:
+                              "background-color var(--duration-fast) ease",
+                          }}
+                          onMouseEnter={(e) => {
+                            (
+                              e.currentTarget as HTMLButtonElement
+                            ).style.backgroundColor =
+                              "var(--color-bg-selected)";
+                          }}
+                          onMouseLeave={(e) => {
+                            (
+                              e.currentTarget as HTMLButtonElement
+                            ).style.backgroundColor = "transparent";
+                          }}
+                        >
+                          + Claim
+                        </button>
+                      </div>
                     </div>
                   </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           )}
         </InspectorSection>
@@ -701,10 +758,13 @@ export function SourceReaderClient({
                       gap: "0.375rem",
                       marginTop: "0.25rem",
                     }}
-                    >
-                      <span
-                        className={CLAIM_STATUS_CHIP[c.status] ?? "chip"}
-                      style={{ fontSize: "0.625rem", padding: "0.0625rem 0.375rem" }}
+                  >
+                    <span
+                      className={CLAIM_STATUS_CHIP[c.status] ?? "chip"}
+                      style={{
+                        fontSize: "0.625rem",
+                        padding: "0.0625rem 0.375rem",
+                      }}
                     >
                       {CLAIM_STATUS_LABELS[c.status] ?? c.status}
                     </span>
@@ -744,6 +804,9 @@ export function SourceReaderClient({
                           key={claimEntity.entity.id}
                           entity={claimEntity.entity}
                           compact
+                          onClick={() =>
+                            setSelectedEntityId(claimEntity.entity.id)
+                          }
                         />
                       ))}
                     </div>
@@ -754,7 +817,11 @@ export function SourceReaderClient({
                 type="button"
                 className="btn btn-secondary"
                 onClick={() => openClaimModal()}
-                style={{ fontSize: "0.75rem", padding: "0.25rem 0.5rem", alignSelf: "flex-start" }}
+                style={{
+                  fontSize: "0.75rem",
+                  padding: "0.25rem 0.5rem",
+                  alignSelf: "flex-start",
+                }}
               >
                 + Create Claim
               </button>
@@ -763,7 +830,10 @@ export function SourceReaderClient({
         </InspectorSection>
 
         {/* Linked Entities placeholder */}
-        <InspectorSection title="Linked Entities" count={linkedSourceEntities.length}>
+        <InspectorSection
+          title="Linked Entities"
+          count={linkedSourceEntities.length}
+        >
           {linkedSourceEntities.length === 0 ? (
             <p
               style={{
@@ -775,7 +845,8 @@ export function SourceReaderClient({
                 marginBottom: "0.5rem",
               }}
             >
-              No entity links yet. Attach durable references from the source body or a highlight.
+              No entity links yet. Attach durable references from the source
+              body or a highlight.
             </p>
           ) : (
             <div
@@ -787,7 +858,11 @@ export function SourceReaderClient({
               }}
             >
               {linkedSourceEntities.map((entity) => (
-                <EntityChip key={entity.id} entity={entity} />
+                <EntityChip
+                  key={entity.id}
+                  entity={entity}
+                  onClick={() => setSelectedEntityId(entity.id)}
+                />
               ))}
             </div>
           )}
@@ -852,6 +927,12 @@ export function SourceReaderClient({
         target={entityTarget}
         onClose={() => setEntityTarget(null)}
       />
+
+      <EntityDetailDrawer
+        dossierId={dossierId}
+        entity={selectedEntity}
+        onClose={() => setSelectedEntityId(null)}
+      />
     </div>
   );
 }
@@ -903,13 +984,7 @@ function InspectorSection({
   );
 }
 
-function MetaRow({
-  label,
-  value,
-}: {
-  label: string;
-  value: React.ReactNode;
-}) {
+function MetaRow({ label, value }: { label: string; value: React.ReactNode }) {
   return (
     <div
       style={{

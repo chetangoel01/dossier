@@ -12,6 +12,7 @@ interface Highlight {
 interface HighlightedTextProps {
   text: string;
   highlights: Highlight[];
+  activeHighlightId?: string | null;
 }
 
 const LABEL_BG: Record<string, string> = {
@@ -22,16 +23,25 @@ const LABEL_BG: Record<string, string> = {
   quote: "var(--color-highlight-wash)",
 };
 
-export function HighlightedText({ text, highlights }: HighlightedTextProps) {
+export function HighlightedText({
+  text,
+  highlights,
+  activeHighlightId = null,
+}: HighlightedTextProps) {
   const segments = useMemo(() => {
-    if (highlights.length === 0) return [{ text, highlightId: null, label: null }];
+    if (highlights.length === 0)
+      return [{ text, highlightId: null, label: null }];
 
     // Sort by start_offset, then by end_offset descending for nesting
     const sorted = [...highlights].sort(
-      (a, b) => a.start_offset - b.start_offset || b.end_offset - a.end_offset,
+      (a, b) => a.start_offset - b.start_offset || b.end_offset - a.end_offset
     );
 
-    const result: { text: string; highlightId: string | null; label: string | null }[] = [];
+    const result: {
+      text: string;
+      highlightId: string | null;
+      label: string | null;
+    }[] = [];
     let cursor = 0;
 
     for (const hl of sorted) {
@@ -41,7 +51,11 @@ export function HighlightedText({ text, highlights }: HighlightedTextProps) {
         // Truncate overlapping portion — render only the non-overlapping tail
         const adjustedStart = cursor;
         if (adjustedStart >= end) continue;
-        result.push({ text: text.slice(adjustedStart, end), highlightId: hl.id, label: hl.label });
+        result.push({
+          text: text.slice(adjustedStart, end),
+          highlightId: hl.id,
+          label: hl.label,
+        });
         cursor = end;
         continue;
       }
@@ -49,10 +63,18 @@ export function HighlightedText({ text, highlights }: HighlightedTextProps) {
 
       // Add unhighlighted text before this highlight
       if (cursor < start) {
-        result.push({ text: text.slice(cursor, start), highlightId: null, label: null });
+        result.push({
+          text: text.slice(cursor, start),
+          highlightId: null,
+          label: null,
+        });
       }
 
-      result.push({ text: text.slice(start, end), highlightId: hl.id, label: hl.label });
+      result.push({
+        text: text.slice(start, end),
+        highlightId: hl.id,
+        label: hl.label,
+      });
       cursor = end;
     }
 
@@ -72,18 +94,24 @@ export function HighlightedText({ text, highlights }: HighlightedTextProps) {
             key={seg.highlightId}
             data-highlight-id={seg.highlightId}
             style={{
-              backgroundColor: LABEL_BG[seg.label ?? "evidence"] ?? LABEL_BG.evidence,
+              backgroundColor:
+                LABEL_BG[seg.label ?? "evidence"] ?? LABEL_BG.evidence,
               borderBottom: "1.5px solid var(--color-accent-ink)",
               borderRadius: "var(--radius-xs)",
               padding: "0.0625rem 0",
               color: "inherit",
+              boxShadow:
+                seg.highlightId === activeHighlightId
+                  ? "0 0 0 2px rgba(24, 78, 119, 0.18)"
+                  : "none",
+              transition: "box-shadow var(--duration-fast) ease",
             }}
           >
             {seg.text}
           </mark>
         ) : (
           <span key={i}>{seg.text}</span>
-        ),
+        )
       )}
     </>
   );
