@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useMemo, useRef } from "react";
+import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { EvidenceGutter } from "./EvidenceGutter";
@@ -16,6 +16,7 @@ import type {
   EntityBacklinkItem,
   EntityListItem,
 } from "@/server/queries/entities";
+import { getEntityBacklinkDetail } from "@/server/actions/entities";
 import { dedupeById } from "@/lib/entities";
 import { EntityChip } from "@/components/entities/EntityChip";
 import {
@@ -30,7 +31,15 @@ interface Props {
   allSources: SourceListItem[];
   claims: SourceClaimItem[];
   entities: EntityListItem[];
-  entityBacklinks: EntityBacklinkItem[];
+}
+
+interface EntityDrawerPreview {
+  id: string;
+  name: string;
+  type: EntityListItem["type"];
+  description?: string | null;
+  aliases?: string[];
+  importance?: number | null;
 }
 
 const TYPE_LABELS: Record<string, string> = {
@@ -91,9 +100,9 @@ export function SourceReaderClient({
   allSources,
   claims,
   entities,
-  entityBacklinks,
 }: Props) {
   const searchParams = useSearchParams();
+  const entityRequestIdRef = useRef(0);
   const [inspectorOpen, setInspectorOpen] = useState(true);
   const readingAreaRef = useRef<HTMLDivElement>(null);
   const [claimModalOpen, setClaimModalOpen] = useState(false);
@@ -101,7 +110,12 @@ export function SourceReaderClient({
     string[]
   >([]);
   const [entityTarget, setEntityTarget] = useState<LinkTarget | null>(null);
-  const [selectedEntityId, setSelectedEntityId] = useState<string | null>(null);
+  const [selectedEntity, setSelectedEntity] =
+    useState<EntityBacklinkItem | null>(null);
+  const [selectedEntityPreview, setSelectedEntityPreview] =
+    useState<EntityDrawerPreview | null>(null);
+  const [isEntityDrawerOpen, setIsEntityDrawerOpen] = useState(false);
+  const [isEntityDrawerPending, startEntityDrawerTransition] = useTransition();
 
   const activeHighlightId = searchParams.get("highlight");
 
@@ -148,11 +162,41 @@ export function SourceReaderClient({
     [source.highlights, source.mentions]
   );
 
-  const selectedEntity = useMemo(
-    () =>
-      entityBacklinks.find((entity) => entity.id === selectedEntityId) ?? null,
-    [entityBacklinks, selectedEntityId]
-  );
+  function closeEntityDrawer() {
+    entityRequestIdRef.current += 1;
+    setIsEntityDrawerOpen(false);
+    setSelectedEntity(null);
+    setSelectedEntityPreview(null);
+  }
+
+  function openEntityDrawer(preview: EntityDrawerPreview) {
+    const requestId = entityRequestIdRef.current + 1;
+    entityRequestIdRef.current = requestId;
+
+    setSelectedEntityPreview(preview);
+    setSelectedEntity(null);
+    setIsEntityDrawerOpen(true);
+
+    startEntityDrawerTransition(async () => {
+      const result = await getEntityBacklinkDetail({
+        dossierId,
+        entityId: preview.id,
+      });
+
+      if (entityRequestIdRef.current !== requestId) {
+        return;
+      }
+
+      if ("error" in result) {
+        setIsEntityDrawerOpen(false);
+        setSelectedEntity(null);
+        setSelectedEntityPreview(null);
+        return;
+      }
+
+      setSelectedEntity(result.entity);
+    });
+  }
 
   useEffect(() => {
     if (!activeHighlightId) {
@@ -624,9 +668,7 @@ export function SourceReaderClient({
                                 key={mention.id}
                                 entity={mention.entity}
                                 compact
-                                onClick={() =>
-                                  setSelectedEntityId(mention.entity.id)
-                                }
+                                onClick={() => openEntityDrawer(mention.entity)}
                               />
                             ))}
                           </div>
@@ -805,7 +847,7 @@ export function SourceReaderClient({
                           entity={claimEntity.entity}
                           compact
                           onClick={() =>
-                            setSelectedEntityId(claimEntity.entity.id)
+                            openEntityDrawer(claimEntity.entity)
                           }
                         />
                       ))}
@@ -861,7 +903,7 @@ export function SourceReaderClient({
                 <EntityChip
                   key={entity.id}
                   entity={entity}
-                  onClick={() => setSelectedEntityId(entity.id)}
+                  onClick={() => openEntityDrawer(entity)}
                 />
               ))}
             </div>
@@ -930,8 +972,11 @@ export function SourceReaderClient({
 
       <EntityDetailDrawer
         dossierId={dossierId}
+        open={isEntityDrawerOpen}
         entity={selectedEntity}
-        onClose={() => setSelectedEntityId(null)}
+        entityPreview={selectedEntityPreview}
+        loading={isEntityDrawerPending && selectedEntity == null}
+        onClose={closeEntityDrawer}
       />
     </div>
   );

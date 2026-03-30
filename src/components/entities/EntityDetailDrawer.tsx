@@ -1,7 +1,8 @@
 "use client";
 
-import { useEffect, useMemo } from "react";
+import { useEffect, useId, useMemo, useRef } from "react";
 import Link from "next/link";
+import { createPortal } from "react-dom";
 import type { EntityBacklinkItem } from "@/server/queries/entities";
 import {
   ENTITY_TYPE_LABELS,
@@ -13,67 +14,160 @@ import {
 } from "@/lib/entities";
 import { EntityChip } from "./EntityChip";
 
+interface EntityDetailPreview {
+  id: string;
+  name: string;
+  type: EntityBacklinkItem["type"];
+  description?: string | null;
+  aliases?: string[];
+  importance?: number | null;
+}
+
 interface EntityDetailDrawerProps {
   dossierId: string;
   entity: EntityBacklinkItem | null;
+  entityPreview?: EntityDetailPreview | null;
+  loading?: boolean;
+  open?: boolean;
   onClose: () => void;
+}
+
+const FOCUSABLE_SELECTOR = [
+  "a[href]",
+  "button:not([disabled])",
+  "input:not([disabled]):not([type='hidden'])",
+  "select:not([disabled])",
+  "textarea:not([disabled])",
+  "[tabindex]:not([tabindex='-1'])",
+].join(",");
+
+function getFocusableElements(container: HTMLElement) {
+  return Array.from(container.querySelectorAll<HTMLElement>(FOCUSABLE_SELECTOR))
+    .filter((element) => !element.hasAttribute("disabled"))
+    .filter((element) => element.getAttribute("aria-hidden") !== "true");
 }
 
 export function EntityDetailDrawer({
   dossierId,
   entity,
+  entityPreview = null,
+  loading = false,
+  open = entity != null,
   onClose,
 }: EntityDetailDrawerProps) {
+  const descriptionId = useId();
+  const titleId = useId();
+  const dialogRef = useRef<HTMLDivElement>(null);
+  const restoreFocusRef = useRef<HTMLElement | null>(null);
+  const displayEntity = entity ?? entityPreview;
   const sortedMentions = useMemo(
     () => (entity ? sortEntityMentions(entity.mentions) : []),
     [entity]
   );
 
   useEffect(() => {
-    if (!entity) {
+    if (!open || !displayEntity) {
       return;
     }
 
     const previousOverflow = document.body.style.overflow;
+    restoreFocusRef.current =
+      document.activeElement instanceof HTMLElement
+        ? document.activeElement
+        : null;
+
     const handleKeyDown = (event: KeyboardEvent) => {
       if (event.key === "Escape") {
+        event.preventDefault();
         onClose();
+        return;
+      }
+
+      if (event.key !== "Tab") {
+        return;
+      }
+
+      const dialog = dialogRef.current;
+      if (!dialog) {
+        return;
+      }
+
+      const focusableElements = getFocusableElements(dialog);
+      if (focusableElements.length === 0) {
+        event.preventDefault();
+        dialog.focus();
+        return;
+      }
+
+      const firstElement = focusableElements[0];
+      const lastElement = focusableElements[focusableElements.length - 1];
+      const activeElement =
+        document.activeElement instanceof HTMLElement
+          ? document.activeElement
+          : null;
+      const isFocusInside = !!activeElement && dialog.contains(activeElement);
+
+      if (event.shiftKey) {
+        if (!isFocusInside || activeElement === firstElement) {
+          event.preventDefault();
+          lastElement.focus();
+        }
+        return;
+      }
+
+      if (!isFocusInside || activeElement === lastElement) {
+        event.preventDefault();
+        firstElement.focus();
       }
     };
 
     document.body.style.overflow = "hidden";
     document.addEventListener("keydown", handleKeyDown);
 
+    window.requestAnimationFrame(() => {
+      const dialog = dialogRef.current;
+      if (!dialog) {
+        return;
+      }
+
+      const [firstFocusableElement] = getFocusableElements(dialog);
+      (firstFocusableElement ?? dialog).focus();
+    });
+
     return () => {
       document.body.style.overflow = previousOverflow;
       document.removeEventListener("keydown", handleKeyDown);
+      window.requestAnimationFrame(() => {
+        restoreFocusRef.current?.focus();
+      });
     };
-  }, [entity, onClose]);
+  }, [displayEntity, onClose, open]);
 
-  if (!entity) {
+  if (!open || !displayEntity) {
     return null;
   }
 
-  return (
+  return createPortal(
     <>
-      <button
-        type="button"
-        aria-label="Close entity context"
+      <div
+        aria-hidden="true"
         onClick={onClose}
         style={{
           position: "fixed",
           inset: 0,
-          border: "none",
           backgroundColor: "rgba(31, 41, 51, 0.18)",
           cursor: "pointer",
           zIndex: 30,
         }}
       />
 
-      <aside
+      <div
+        ref={dialogRef}
         role="dialog"
         aria-modal="true"
-        aria-label={`${entity.name} context`}
+        aria-labelledby={titleId}
+        aria-describedby={descriptionId}
+        tabIndex={-1}
         style={{
           position: "fixed",
           top: 0,
@@ -103,6 +197,7 @@ export function EntityDetailDrawer({
         >
           <div>
             <p
+              id={descriptionId}
               style={{
                 fontFamily: "var(--font-mono)",
                 fontSize: "0.6875rem",
@@ -115,13 +210,15 @@ export function EntityDetailDrawer({
             >
               Entity Context
             </p>
-            <EntityChip
-              entity={{
-                id: entity.id,
-                name: entity.name,
-                type: entity.type,
-              }}
-            />
+            <h2 id={titleId} style={{ margin: 0 }}>
+              <EntityChip
+                entity={{
+                  id: displayEntity.id,
+                  name: displayEntity.name,
+                  type: displayEntity.type,
+                }}
+              />
+            </h2>
           </div>
 
           <button
@@ -136,7 +233,18 @@ export function EntityDetailDrawer({
         </div>
 
         <DrawerSection title="Profile">
-          {entity.description ? (
+          {loading ? (
+            <p
+              style={{
+                fontFamily: "var(--font-mono)",
+                fontSize: "0.75rem",
+                color: "var(--color-ink-secondary)",
+                maxWidth: "none",
+              }}
+            >
+              Loading entity context...
+            </p>
+          ) : displayEntity.description ? (
             <p
               style={{
                 fontFamily: "var(--font-sans)",
@@ -146,7 +254,7 @@ export function EntityDetailDrawer({
                 maxWidth: "none",
               }}
             >
-              {entity.description}
+              {displayEntity.description}
             </p>
           ) : (
             <p
@@ -172,29 +280,43 @@ export function EntityDetailDrawer({
           >
             <DrawerMetaRow
               label="Type"
-              value={ENTITY_TYPE_LABELS[entity.type]}
+              value={ENTITY_TYPE_LABELS[displayEntity.type]}
             />
             <DrawerMetaRow
               label="Aliases"
               value={
-                entity.aliases.length > 0
-                  ? formatEntityAliases(entity.aliases)
+                displayEntity.aliases != null && displayEntity.aliases.length > 0
+                  ? formatEntityAliases(displayEntity.aliases)
                   : "No aliases recorded"
               }
             />
             <DrawerMetaRow
               label="Importance"
               value={
-                entity.importance != null
-                  ? `${entity.importance}/10`
+                displayEntity.importance != null
+                  ? `${displayEntity.importance}/10`
                   : "Not ranked"
               }
             />
           </div>
         </DrawerSection>
 
-        <DrawerSection title="Backlinks" count={sortedMentions.length}>
-          {sortedMentions.length === 0 ? (
+        <DrawerSection
+          title="Backlinks"
+          count={loading ? undefined : sortedMentions.length}
+        >
+          {loading ? (
+            <p
+              style={{
+                fontFamily: "var(--font-mono)",
+                fontSize: "0.75rem",
+                color: "var(--color-ink-secondary)",
+                maxWidth: "none",
+              }}
+            >
+              Loading linked source context...
+            </p>
+          ) : sortedMentions.length === 0 ? (
             <p
               style={{
                 fontFamily: "var(--font-mono)",
@@ -343,8 +465,9 @@ export function EntityDetailDrawer({
             </div>
           )}
         </DrawerSection>
-      </aside>
-    </>
+      </div>
+    </>,
+    document.body
   );
 }
 

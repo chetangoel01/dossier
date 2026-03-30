@@ -3,7 +3,7 @@ import { redirect, notFound } from "next/navigation";
 import { auth } from "@/auth";
 import { getSources, getSourceForReader } from "@/server/queries/sources";
 import { getClaimsForSource } from "@/server/queries/claims";
-import { getEntities, getEntityBacklinks } from "@/server/queries/entities";
+import { getEntities } from "@/server/queries/entities";
 import { SourceReaderClient } from "@/components/sources/SourceReaderClient";
 
 export const metadata: Metadata = {
@@ -24,14 +24,12 @@ export default async function SourceReaderPage({
 
   const { id, sourceId } = await params;
 
-  const [source, allSources, claims, entities, entityBacklinks] =
-    await Promise.all([
-      getSourceForReader(sourceId, id, session.user.id),
-      getSources(id, session.user.id),
-      getClaimsForSource(sourceId, id, session.user.id),
-      getEntities(id, session.user.id),
-      getEntityBacklinks(id, session.user.id),
-    ]);
+  const [source, allSources, claims, entities] = await Promise.all([
+    getSourceForReader(sourceId, id, session.user.id),
+    getSources(id, session.user.id),
+    getClaimsForSource(sourceId, id, session.user.id),
+    getEntities(id, session.user.id),
+  ]);
 
   if (!source) {
     notFound();
@@ -44,7 +42,6 @@ export default async function SourceReaderPage({
       allSources={allSources}
       claims={claims}
       entities={entities}
-      entityBacklinks={entityBacklinks}
     />
   );
 }
