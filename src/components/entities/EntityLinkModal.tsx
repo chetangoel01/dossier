@@ -98,6 +98,34 @@ export function EntityLinkModal({
     });
   }, [entities, search]);
 
+  const hasVisibleSelectedEntity = useMemo(
+    () =>
+      selectedEntityId != null &&
+      filteredEntities.some((entity) => entity.id === selectedEntityId),
+    [filteredEntities, selectedEntityId],
+  );
+
+  useEffect(() => {
+    if (!open || mode !== "existing") return;
+
+    if (filteredEntities.length === 0) {
+      if (selectedEntityId !== null) {
+        setSelectedEntityId(null);
+      }
+      return;
+    }
+
+    if (!hasVisibleSelectedEntity) {
+      setSelectedEntityId(filteredEntities[0].id);
+    }
+  }, [
+    filteredEntities,
+    hasVisibleSelectedEntity,
+    mode,
+    open,
+    selectedEntityId,
+  ]);
+
   function handleDialogClick(e: React.MouseEvent<HTMLDialogElement>) {
     const rect = dialogRef.current?.getBoundingClientRect();
     if (!rect) return;
@@ -120,7 +148,8 @@ export function EntityLinkModal({
     setSaving(true);
     setError(null);
 
-    let entityId = selectedEntityId;
+    let entityId =
+      mode === "existing" && hasVisibleSelectedEntity ? selectedEntityId : null;
 
     if (mode === "new") {
       const createResult = await createEntity({
@@ -548,7 +577,7 @@ export function EntityLinkModal({
               className="btn btn-primary"
               disabled={
                 saving ||
-                (mode === "existing" && !selectedEntityId) ||
+                (mode === "existing" && !hasVisibleSelectedEntity) ||
                 (mode === "new" && !name.trim())
               }
             >
