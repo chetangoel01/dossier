@@ -69,6 +69,32 @@ export async function getSourceForReader(id: string, dossierId: string, userId: 
           annotation: true,
           label: true,
           created_at: true,
+          mentions: {
+            select: {
+              id: true,
+              context_snippet: true,
+              entity: {
+                select: {
+                  id: true,
+                  name: true,
+                  type: true,
+                },
+              },
+            },
+          },
+        },
+      },
+      mentions: {
+        select: {
+          id: true,
+          context_snippet: true,
+          entity: {
+            select: {
+              id: true,
+              name: true,
+              type: true,
+            },
+          },
         },
       },
       tags: {

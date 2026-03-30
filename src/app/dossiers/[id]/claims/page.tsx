@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { auth } from "@/auth";
 import { getClaims } from "@/server/queries/claims";
+import { getEntities } from "@/server/queries/entities";
 import { ClaimsClient } from "@/components/claims/ClaimsClient";
 
 export const metadata: Metadata = {
@@ -19,7 +20,10 @@ export default async function ClaimsPage({ params }: ClaimsPageProps) {
   }
 
   const { id } = await params;
-  const claims = await getClaims(id, session.user.id);
+  const [claims, entities] = await Promise.all([
+    getClaims(id, session.user.id),
+    getEntities(id, session.user.id),
+  ]);
 
-  return <ClaimsClient dossierId={id} claims={claims} />;
+  return <ClaimsClient dossierId={id} claims={claims} entities={entities} />;
 }
