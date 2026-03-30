@@ -3,6 +3,10 @@
 import { auth } from "@/auth";
 import { buildContextSnippet } from "@/lib/entities";
 import { db } from "@/lib/db";
+import {
+  getEntityBacklink,
+  type EntityBacklinkItem,
+} from "@/server/queries/entities";
 import { revalidatePath } from "next/cache";
 import type { EntityType } from "@prisma/client";
 
@@ -52,6 +56,25 @@ function getTargetCount(input: LinkEntityInput): number {
 
 function revalidateDossierPaths(dossierId: string) {
   revalidatePath(`/dossiers/${dossierId}`, "layout");
+}
+
+export async function getEntityBacklinkDetail(input: {
+  dossierId: string;
+  entityId: string;
+}): Promise<{ error: string } | { entity: EntityBacklinkItem }> {
+  const session = await auth();
+  if (!session?.user?.id) return { error: "You must be signed in." };
+  if (!input.dossierId) return { error: "Dossier ID is required." };
+  if (!input.entityId) return { error: "Entity ID is required." };
+
+  const entity = await getEntityBacklink(
+    input.dossierId,
+    input.entityId,
+    session.user.id,
+  );
+  if (!entity) return { error: "Entity not found." };
+
+  return { entity };
 }
 
 export async function createEntity(

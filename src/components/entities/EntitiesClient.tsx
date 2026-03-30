@@ -2,30 +2,48 @@
 
 import { useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import type { EntityListItem } from "@/server/queries/entities";
+import type {
+  EntityBacklinkItem,
+  EntityListItem,
+} from "@/server/queries/entities";
 import { deleteEntity } from "@/server/actions/entities";
 import { EntityChip } from "./EntityChip";
 import { EntityEditorModal } from "./EntityEditorModal";
+import { EntityDetailDrawer } from "./EntityDetailDrawer";
 import { formatEntityAliases } from "@/lib/entities";
 
 interface EntitiesClientProps {
   dossierId: string;
   entities: EntityListItem[];
+  entityBacklinks: EntityBacklinkItem[];
 }
 
-export function EntitiesClient({ dossierId, entities }: EntitiesClientProps) {
+export function EntitiesClient({
+  dossierId,
+  entities,
+  entityBacklinks,
+}: EntitiesClientProps) {
   const router = useRouter();
   const [editorOpen, setEditorOpen] = useState(false);
   const [editingEntityId, setEditingEntityId] = useState<string | null>(null);
+  const [selectedEntityId, setSelectedEntityId] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
 
   const editingEntity = useMemo(
     () => entities.find((entity) => entity.id === editingEntityId) ?? null,
-    [editingEntityId, entities],
+    [editingEntityId, entities]
+  );
+
+  const selectedEntity = useMemo(
+    () =>
+      entityBacklinks.find((entity) => entity.id === selectedEntityId) ?? null,
+    [entityBacklinks, selectedEntityId]
   );
 
   function handleDelete(id: string) {
-    if (!window.confirm("Delete this entity? Linked references will be removed.")) {
+    if (
+      !window.confirm("Delete this entity? Linked references will be removed.")
+    ) {
       return;
     }
 
@@ -69,7 +87,8 @@ export function EntitiesClient({ dossierId, entities }: EntitiesClientProps) {
                 maxWidth: "none",
               }}
             >
-              {entities.length} reusable reference{entities.length === 1 ? "" : "s"}
+              {entities.length} reusable reference
+              {entities.length === 1 ? "" : "s"}
             </p>
           </div>
 
@@ -106,7 +125,8 @@ export function EntitiesClient({ dossierId, entities }: EntitiesClientProps) {
                 marginBottom: "1rem",
               }}
             >
-              Promote the people, companies, products, locations, institutions, and topics that recur across your research.
+              Promote the people, companies, products, locations, institutions,
+              and topics that recur across your research.
             </p>
             <button
               type="button"
@@ -117,7 +137,13 @@ export function EntitiesClient({ dossierId, entities }: EntitiesClientProps) {
             </button>
           </div>
         ) : (
-          <div style={{ display: "flex", flexDirection: "column", gap: "0.875rem" }}>
+          <div
+            style={{
+              display: "flex",
+              flexDirection: "column",
+              gap: "0.875rem",
+            }}
+          >
             {entities.map((entity) => (
               <div
                 key={entity.id}
@@ -139,6 +165,7 @@ export function EntitiesClient({ dossierId, entities }: EntitiesClientProps) {
                         name: entity.name,
                         type: entity.type,
                       }}
+                      onClick={() => setSelectedEntityId(entity.id)}
                     />
 
                     {entity.description && (
@@ -181,15 +208,24 @@ export function EntitiesClient({ dossierId, entities }: EntitiesClientProps) {
                         color: "var(--color-ink-secondary)",
                       }}
                     >
-                      <span>{entity._count.mentions} mention{entity._count.mentions === 1 ? "" : "s"}</span>
-                      <span>{entity._count.claims} claim{entity._count.claims === 1 ? "" : "s"}</span>
+                      <span>
+                        {entity._count.mentions} mention
+                        {entity._count.mentions === 1 ? "" : "s"}
+                      </span>
+                      <span>
+                        {entity._count.claims} claim
+                        {entity._count.claims === 1 ? "" : "s"}
+                      </span>
                       <span>
                         Updated{" "}
-                        {new Date(entity.updated_at).toLocaleDateString("en-US", {
-                          month: "short",
-                          day: "numeric",
-                          year: "numeric",
-                        })}
+                        {new Date(entity.updated_at).toLocaleDateString(
+                          "en-US",
+                          {
+                            month: "short",
+                            day: "numeric",
+                            year: "numeric",
+                          }
+                        )}
                       </span>
                     </div>
                   </div>
@@ -230,6 +266,12 @@ export function EntitiesClient({ dossierId, entities }: EntitiesClientProps) {
           setEditorOpen(false);
           setEditingEntityId(null);
         }}
+      />
+
+      <EntityDetailDrawer
+        dossierId={dossierId}
+        entity={selectedEntity}
+        onClose={() => setSelectedEntityId(null)}
       />
     </>
   );
