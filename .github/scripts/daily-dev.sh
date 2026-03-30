@@ -256,25 +256,67 @@ $(cat "$body_file")
   log "Pushing branch and creating PR..."
   git push origin "$branch_name"
 
-  local pr_url
-  pr_url=$(gh pr create \
-    --repo "$REPO" \
-    --title "$cc_title" \
-    --body "## Summary
+  # Generate PR summary from the diff
+  log "Generating PR summary..."
+  local diff_for_summary
+  diff_for_summary=$(git diff origin/main...HEAD --stat)
+  local summary_prompt
+  summary_prompt="Write a concise PR summary (3-5 bullet points) for these changes. Only output the bullet points, nothing else.
 
-${cc_title}
+## Issue: ${title}
+
+## Files changed:
+${diff_for_summary}"
+
+  local pr_summary
+  if [[ "$PROVIDER" == "claude" ]]; then
+    pr_summary=$(env -u CLAUDECODE /Users/chetangoel/.local/bin/claude -p "$summary_prompt" 2>&1) || true
+  else
+    local codex_summary_out
+    codex_summary_out=$(mktemp)
+    codex exec -s read-only -o "$codex_summary_out" "$summary_prompt" 2>&1 >/dev/null || true
+    pr_summary=$(cat "$codex_summary_out")
+    rm -f "$codex_summary_out"
+  fi
+
+  # Fall back to commit title if summary generation fails
+  if [[ -z "$pr_summary" ]]; then
+    pr_summary="Implementation of ${ticket_id}."
+  fi
+
+  # Check which validations passed
+  local lint_check="[ ]" typecheck_check="[ ]" build_check="[ ]"
+  if npm run lint --silent 2>/dev/null; then lint_check="[x]"; fi
+  if npm run typecheck --silent 2>/dev/null; then typecheck_check="[x]"; fi
+  if npm run build --silent 2>/dev/null; then build_check="[x]"; fi
+
+  local pr_body_file
+  pr_body_file=$(mktemp)
+  cat > "$pr_body_file" <<PRBODYEOF
+## Summary
+
+${pr_summary}
 
 Closes #${issue_number}
 
 ## Validation
 
-- [ ] Code builds successfully
-- [ ] Lint passes
-- [ ] Typecheck passes
+- ${build_check} Code builds successfully
+- ${lint_check} Lint passes
+- ${typecheck_check} Typecheck passes
 - [ ] Tests pass (if applicable)
-- [ ] Matches design direction from product spec" \
+- [ ] Matches design direction from product spec
+PRBODYEOF
+
+  local pr_url
+  pr_url=$(gh pr create \
+    --repo "$REPO" \
+    --title "$cc_title" \
+    --body-file "$pr_body_file" \
     --base main \
     --head "$branch_name")
+
+  rm -f "$pr_body_file"
 
   log "PR created: $pr_url"
 
@@ -344,7 +386,11 @@ Be specific about what files to change and what the fix should be. This descript
   if [[ "$PROVIDER" == "claude" ]]; then
     review_output=$(env -u CLAUDECODE /Users/chetangoel/.local/bin/claude -p "$review_prompt" --allowedTools "Bash,Read,Glob,Grep" 2>&1) || true
   else
-    review_output=$(codex exec -s read-only "$review_prompt" 2>&1) || true
+    local codex_review_out
+    codex_review_out=$(mktemp)
+    codex exec -s read-only -o "$codex_review_out" "$review_prompt" 2>&1 | tee -a "$LOG_FILE" || true
+    review_output=$(cat "$codex_review_out")
+    rm -f "$codex_review_out"
   fi
 
   rm -f "$diff_file"
