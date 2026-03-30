@@ -4,9 +4,10 @@ set -euo pipefail
 # daily-dev.sh — Pick and implement the next issue(s) for Dossier
 #
 # Usage:
-#   ./daily-dev.sh              # next 1-2 issues
+#   ./daily-dev.sh              # next 1-2 issues (default: claude)
 #   ./daily-dev.sh --count 1    # exactly 1 issue
 #   ./daily-dev.sh --issue 5    # specific issue number
+#   ./daily-dev.sh --provider codex   # use Codex instead of Claude
 
 REPO_DIR="$(cd "$(dirname "$0")/../.." && pwd)"
 REPO="chetangoel01/dossier"
@@ -22,14 +23,23 @@ log() { echo "[$(date '+%H:%M:%S')] $*" | tee -a "$LOG_FILE"; }
 PICK_COUNT=0  # 0 = random
 SPECIFIC_ISSUE=""
 COMMIT_DATE=""
+PROVIDER="claude"
 while [[ $# -gt 0 ]]; do
   case $1 in
-    --count) PICK_COUNT="$2"; shift 2 ;;
-    --issue) SPECIFIC_ISSUE="$2"; shift 2 ;;
-    --date)  COMMIT_DATE="$2"; shift 2 ;;
+    --count)    PICK_COUNT="$2"; shift 2 ;;
+    --issue)    SPECIFIC_ISSUE="$2"; shift 2 ;;
+    --date)     COMMIT_DATE="$2"; shift 2 ;;
+    --provider) PROVIDER="$2"; shift 2 ;;
     *) echo "Unknown arg: $1"; exit 1 ;;
   esac
 done
+
+if [[ "$PROVIDER" != "claude" && "$PROVIDER" != "codex" ]]; then
+  echo "Unknown provider: $PROVIDER (must be 'claude' or 'codex')"
+  exit 1
+fi
+
+log "Using provider: $PROVIDER"
 
 # If --date was provided, export backdated commit timestamps
 if [[ -n "$COMMIT_DATE" ]]; then
@@ -200,8 +210,7 @@ implement_issue() {
   body_file=$(mktemp)
   echo "$body" > "$body_file"
 
-  # Unset CLAUDECODE to allow spawning from within another session
-  log "Running Claude Code..."
+  log "Running $PROVIDER for implementation..."
   local prompt
   prompt="You are implementing a GitHub issue for the Dossier project.
 
@@ -222,7 +231,11 @@ $(cat "$body_file")
 6. If package.json exists, make sure npm run build succeeds.
 7. Stage and commit all your changes with the message format: ${cc_prefix}(${ticket_id}): <short description of what you built>"
 
-  env -u CLAUDECODE /Users/chetangoel/.local/bin/claude -p "$prompt" --allowedTools "Bash,Read,Write,Edit,Glob,Grep" 2>&1 | tee -a "$LOG_FILE" || true
+  if [[ "$PROVIDER" == "claude" ]]; then
+    env -u CLAUDECODE /Users/chetangoel/.local/bin/claude -p "$prompt" --allowedTools "Bash,Read,Write,Edit,Glob,Grep" 2>&1 | tee -a "$LOG_FILE" || true
+  else
+    codex exec -s workspace-write "$prompt" 2>&1 | tee -a "$LOG_FILE" || true
+  fi
 
   # Check if there are changes
   if [[ -z "$(git status --porcelain)" && -z "$(git log origin/main..HEAD --oneline 2>/dev/null)" ]]; then
@@ -328,7 +341,11 @@ If there are no actionable fixes, just write: NONE
 Be specific about what files to change and what the fix should be. This description will be given to another Claude session that will apply the fixes directly to the code."
 
   local review_output
-  review_output=$(env -u CLAUDECODE /Users/chetangoel/.local/bin/claude -p "$review_prompt" --allowedTools "Bash,Read,Glob,Grep" 2>&1) || true
+  if [[ "$PROVIDER" == "claude" ]]; then
+    review_output=$(env -u CLAUDECODE /Users/chetangoel/.local/bin/claude -p "$review_prompt" --allowedTools "Bash,Read,Glob,Grep" 2>&1) || true
+  else
+    review_output=$(codex exec -s read-only "$review_prompt" 2>&1) || true
+  fi
 
   rm -f "$diff_file"
   rm -f "$body_file"
@@ -380,7 +397,11 @@ ${fixes_trimmed}
 3. Run npm run lint, npm run typecheck, and npm run build to verify nothing is broken.
 4. Stage and commit all changes with the message: fix(${ticket_id}): address review feedback"
 
-      env -u CLAUDECODE /Users/chetangoel/.local/bin/claude -p "$fix_prompt" --allowedTools "Bash,Read,Write,Edit,Glob,Grep" 2>&1 | tee -a "$LOG_FILE" || true
+      if [[ "$PROVIDER" == "claude" ]]; then
+        env -u CLAUDECODE /Users/chetangoel/.local/bin/claude -p "$fix_prompt" --allowedTools "Bash,Read,Write,Edit,Glob,Grep" 2>&1 | tee -a "$LOG_FILE" || true
+      else
+        codex exec -s workspace-write "$fix_prompt" 2>&1 | tee -a "$LOG_FILE" || true
+      fi
 
       # Commit any uncommitted changes from the fix session
       if [[ -n "$(git status --porcelain)" ]]; then
