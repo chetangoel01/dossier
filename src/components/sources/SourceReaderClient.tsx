@@ -8,12 +8,20 @@ import { SelectionToolbar } from "./SelectionToolbar";
 import { CreateClaimModal } from "@/components/claims/CreateClaimModal";
 import type { SourceReaderData, SourceListItem } from "@/server/queries/sources";
 import type { SourceClaimItem } from "@/server/queries/claims";
+import type { EntityListItem } from "@/server/queries/entities";
+import { dedupeById } from "@/lib/entities";
+import { EntityChip } from "@/components/entities/EntityChip";
+import {
+  EntityLinkModal,
+  type LinkTarget,
+} from "@/components/entities/EntityLinkModal";
 
 interface Props {
   dossierId: string;
   source: SourceReaderData;
   allSources: SourceListItem[];
   claims: SourceClaimItem[];
+  entities: EntityListItem[];
 }
 
 const TYPE_LABELS: Record<string, string> = {
@@ -68,15 +76,40 @@ const CLAIM_STATUS_CHIP: Record<string, string> = {
   deprecated: "chip chip-warning",
 };
 
-export function SourceReaderClient({ dossierId, source, allSources, claims }: Props) {
+export function SourceReaderClient({
+  dossierId,
+  source,
+  allSources,
+  claims,
+  entities,
+}: Props) {
   const [inspectorOpen, setInspectorOpen] = useState(true);
   const readingAreaRef = useRef<HTMLDivElement>(null);
   const [claimModalOpen, setClaimModalOpen] = useState(false);
   const [preselectedHighlightIds, setPreselectedHighlightIds] = useState<string[]>([]);
+  const [entityTarget, setEntityTarget] = useState<LinkTarget | null>(null);
 
   const openClaimModal = (highlightId?: string) => {
     setPreselectedHighlightIds(highlightId ? [highlightId] : []);
     setClaimModalOpen(true);
+  };
+
+  const openSourceEntityModal = () => {
+    setEntityTarget({
+      kind: "source",
+      id: source.id,
+      label: source.title,
+      contextSnippet: source.summary ?? source.raw_text ?? source.title,
+    });
+  };
+
+  const openHighlightEntityModal = (highlightId: string, quoteText: string) => {
+    setEntityTarget({
+      kind: "highlight",
+      id: highlightId,
+      label: quoteText.length > 180 ? `${quoteText.slice(0, 180)}…` : quoteText,
+      contextSnippet: quoteText,
+    });
   };
 
   const gutterMarks = useMemo(() => {
@@ -87,6 +120,17 @@ export function SourceReaderClient({ dossierId, source, allSources, claims }: Pr
       offsetPercent: Math.min((h.start_offset / textLength) * 100, 98),
     }));
   }, [source.highlights, source.raw_text]);
+
+  const linkedSourceEntities = useMemo(
+    () =>
+      dedupeById([
+        ...source.mentions.map((mention) => mention.entity),
+        ...source.highlights.flatMap((highlight) =>
+          highlight.mentions.map((mention) => mention.entity),
+        ),
+      ]),
+    [source.highlights, source.mentions],
+  );
 
   return (
     <div
@@ -501,47 +545,89 @@ export function SourceReaderClient({ dossierId, source, allSources, claims }: Pr
                   <div
                     style={{
                       display: "flex",
-                      alignItems: "center",
+                      alignItems: "flex-start",
                       justifyContent: "space-between",
                       marginTop: "0.25rem",
+                      gap: "0.75rem",
                     }}
                   >
-                    <span
-                      style={{
-                        fontFamily: "var(--font-mono)",
-                        fontSize: "0.6875rem",
-                        color: "var(--color-ink-secondary)",
-                      }}
-                    >
-                      {LABEL_LABELS[h.label] ?? h.label}
-                    </span>
-                    <button
-                      type="button"
-                      onClick={() => openClaimModal(h.id)}
-                      style={{
-                        fontFamily: "var(--font-mono)",
-                        fontSize: "0.625rem",
-                        color: "var(--color-accent-ink)",
-                        backgroundColor: "transparent",
-                        border: "none",
-                        cursor: "pointer",
-                        padding: "0.125rem 0.25rem",
-                        borderRadius: "var(--radius-xs)",
-                        letterSpacing: "0.02em",
-                        transition:
-                          "background-color var(--duration-fast) ease",
-                      }}
-                      onMouseEnter={(e) => {
-                        (e.currentTarget as HTMLButtonElement).style.backgroundColor =
-                          "var(--color-bg-selected)";
-                      }}
-                      onMouseLeave={(e) => {
-                        (e.currentTarget as HTMLButtonElement).style.backgroundColor =
-                          "transparent";
-                      }}
-                    >
-                      + Claim
-                    </button>
+                    <div style={{ minWidth: 0, flex: 1 }}>
+                      <span
+                        style={{
+                          fontFamily: "var(--font-mono)",
+                          fontSize: "0.6875rem",
+                          color: "var(--color-ink-secondary)",
+                        }}
+                      >
+                        {LABEL_LABELS[h.label] ?? h.label}
+                      </span>
+
+                      {h.mentions.length > 0 && (
+                        <div
+                          style={{
+                            display: "flex",
+                            flexWrap: "wrap",
+                            gap: "0.375rem",
+                            marginTop: "0.5rem",
+                          }}
+                        >
+                          {h.mentions.map((mention) => (
+                            <EntityChip
+                              key={mention.id}
+                              entity={mention.entity}
+                              compact
+                            />
+                          ))}
+                        </div>
+                      )}
+                    </div>
+
+                    <div className="flex items-center gap-1.5 shrink-0">
+                      <button
+                        type="button"
+                        onClick={() => openHighlightEntityModal(h.id, h.quote_text)}
+                        style={{
+                          fontFamily: "var(--font-mono)",
+                          fontSize: "0.625rem",
+                          color: "var(--color-accent-ink)",
+                          backgroundColor: "transparent",
+                          border: "none",
+                          cursor: "pointer",
+                          padding: "0.125rem 0.25rem",
+                          borderRadius: "var(--radius-xs)",
+                          letterSpacing: "0.02em",
+                        }}
+                      >
+                        + Entity
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => openClaimModal(h.id)}
+                        style={{
+                          fontFamily: "var(--font-mono)",
+                          fontSize: "0.625rem",
+                          color: "var(--color-accent-ink)",
+                          backgroundColor: "transparent",
+                          border: "none",
+                          cursor: "pointer",
+                          padding: "0.125rem 0.25rem",
+                          borderRadius: "var(--radius-xs)",
+                          letterSpacing: "0.02em",
+                          transition:
+                            "background-color var(--duration-fast) ease",
+                        }}
+                        onMouseEnter={(e) => {
+                          (e.currentTarget as HTMLButtonElement).style.backgroundColor =
+                            "var(--color-bg-selected)";
+                        }}
+                        onMouseLeave={(e) => {
+                          (e.currentTarget as HTMLButtonElement).style.backgroundColor =
+                            "transparent";
+                        }}
+                      >
+                        + Claim
+                      </button>
+                    </div>
                   </div>
                 </div>
               ))}
@@ -615,9 +701,9 @@ export function SourceReaderClient({ dossierId, source, allSources, claims }: Pr
                       gap: "0.375rem",
                       marginTop: "0.25rem",
                     }}
-                  >
-                    <span
-                      className={CLAIM_STATUS_CHIP[c.status] ?? "chip"}
+                    >
+                      <span
+                        className={CLAIM_STATUS_CHIP[c.status] ?? "chip"}
                       style={{ fontSize: "0.625rem", padding: "0.0625rem 0.375rem" }}
                     >
                       {CLAIM_STATUS_LABELS[c.status] ?? c.status}
@@ -643,6 +729,25 @@ export function SourceReaderClient({ dossierId, source, allSources, claims }: Pr
                       · {c._count.highlights} hl
                     </span>
                   </div>
+
+                  {c.entities.length > 0 && (
+                    <div
+                      style={{
+                        display: "flex",
+                        flexWrap: "wrap",
+                        gap: "0.375rem",
+                        marginTop: "0.5rem",
+                      }}
+                    >
+                      {c.entities.map((claimEntity) => (
+                        <EntityChip
+                          key={claimEntity.entity.id}
+                          entity={claimEntity.entity}
+                          compact
+                        />
+                      ))}
+                    </div>
+                  )}
                 </div>
               ))}
               <button
@@ -658,18 +763,43 @@ export function SourceReaderClient({ dossierId, source, allSources, claims }: Pr
         </InspectorSection>
 
         {/* Linked Entities placeholder */}
-        <InspectorSection title="Linked Entities">
-          <p
-            style={{
-              fontFamily: "var(--font-mono)",
-              fontSize: "0.75rem",
-              color: "var(--color-ink-secondary)",
-              opacity: 0.6,
-              maxWidth: "none",
-            }}
+        <InspectorSection title="Linked Entities" count={linkedSourceEntities.length}>
+          {linkedSourceEntities.length === 0 ? (
+            <p
+              style={{
+                fontFamily: "var(--font-mono)",
+                fontSize: "0.75rem",
+                color: "var(--color-ink-secondary)",
+                opacity: 0.6,
+                maxWidth: "none",
+                marginBottom: "0.5rem",
+              }}
+            >
+              No entity links yet. Attach durable references from the source body or a highlight.
+            </p>
+          ) : (
+            <div
+              style={{
+                display: "flex",
+                flexWrap: "wrap",
+                gap: "0.5rem",
+                marginBottom: "0.75rem",
+              }}
+            >
+              {linkedSourceEntities.map((entity) => (
+                <EntityChip key={entity.id} entity={entity} />
+              ))}
+            </div>
+          )}
+
+          <button
+            type="button"
+            className="btn btn-secondary"
+            onClick={openSourceEntityModal}
+            style={{ fontSize: "0.75rem", padding: "0.25rem 0.5rem" }}
           >
-            Entities mentioned in this source will appear here.
-          </p>
+            + Link Source Entity
+          </button>
         </InspectorSection>
       </aside>
 
@@ -713,6 +843,14 @@ export function SourceReaderClient({ dossierId, source, allSources, claims }: Pr
         preselectedHighlightIds={preselectedHighlightIds}
         open={claimModalOpen}
         onClose={() => setClaimModalOpen(false)}
+      />
+
+      <EntityLinkModal
+        dossierId={dossierId}
+        entities={entities}
+        open={entityTarget != null}
+        target={entityTarget}
+        onClose={() => setEntityTarget(null)}
       />
     </div>
   );

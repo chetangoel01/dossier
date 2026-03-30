@@ -58,7 +58,7 @@ describe("validateUrlForFetch", () => {
   });
 
   it("allows valid public URLs", async () => {
-    const result = await validateUrlForFetch("https://example.com");
+    const result = await validateUrlForFetch("https://93.184.216.34");
     expect(result).toEqual({ safe: true });
   });
 

@@ -4,12 +4,19 @@ import { useState, useMemo, useTransition, useRef, useEffect } from "react";
 import Link from "next/link";
 import { deleteClaim, updateClaim } from "@/server/actions/claims";
 import type { ClaimListItem } from "@/server/queries/claims";
+import type { EntityListItem } from "@/server/queries/entities";
 import type { ClaimStatus } from "@prisma/client";
 import { useRouter } from "next/navigation";
+import { EntityChip } from "@/components/entities/EntityChip";
+import {
+  EntityLinkModal,
+  type LinkTarget,
+} from "@/components/entities/EntityLinkModal";
 
 interface Props {
   dossierId: string;
   claims: ClaimListItem[];
+  entities: EntityListItem[];
 }
 
 type ViewMode = "list" | "board";
@@ -197,6 +204,7 @@ function ClaimCard({
   onStatusChange,
   onEdit,
   onDelete,
+  onLinkEntity,
   editingId,
   onSaveEdit,
   onCancelEdit,
@@ -207,6 +215,7 @@ function ClaimCard({
   onStatusChange: (id: string, status: ClaimStatus) => void;
   onEdit: (id: string) => void;
   onDelete: (id: string) => void;
+  onLinkEntity: (claim: ClaimListItem) => void;
   editingId: string | null;
   onSaveEdit: (
     id: string,
@@ -219,6 +228,7 @@ function ClaimCard({
   onCancelEdit: () => void;
 }) {
   const isEditing = editingId === claim.id;
+  const linkedEntities = claim.entities.map((claimEntity) => claimEntity.entity);
 
   return (
     <div
@@ -382,10 +392,38 @@ function ClaimCard({
                 ))}
               </div>
             )}
+
+            {linkedEntities.length > 0 && (
+              <div
+                className="mt-2.5 flex flex-wrap gap-1.5"
+                style={{ alignItems: "center" }}
+              >
+                {linkedEntities.map((entity) => (
+                  <EntityChip
+                    key={entity.id}
+                    entity={entity}
+                    compact={compact}
+                  />
+                ))}
+              </div>
+            )}
           </div>
 
           {/* Actions */}
           <div className="flex items-center gap-1 shrink-0">
+            <button
+              type="button"
+              className="btn btn-ghost"
+              onClick={() => onLinkEntity(claim)}
+              style={{
+                fontSize: "0.6875rem",
+                padding: "0.25rem 0.375rem",
+                color: "var(--color-ink-secondary)",
+              }}
+              aria-label="Link entity"
+            >
+              Entity
+            </button>
             <button
               type="button"
               className="btn btn-ghost"
@@ -427,6 +465,7 @@ function BoardView({
   onStatusChange,
   onEdit,
   onDelete,
+  onLinkEntity,
   editingId,
   onSaveEdit,
   onCancelEdit,
@@ -436,6 +475,7 @@ function BoardView({
   onStatusChange: (id: string, status: ClaimStatus) => void;
   onEdit: (id: string) => void;
   onDelete: (id: string) => void;
+  onLinkEntity: (claim: ClaimListItem) => void;
   editingId: string | null;
   onSaveEdit: (
     id: string,
@@ -522,6 +562,7 @@ function BoardView({
                   onStatusChange={onStatusChange}
                   onEdit={onEdit}
                   onDelete={onDelete}
+                  onLinkEntity={onLinkEntity}
                   editingId={editingId}
                   onSaveEdit={onSaveEdit}
                   onCancelEdit={onCancelEdit}
@@ -537,11 +578,12 @@ function BoardView({
 
 /* ─── Main Component ────────────────────────────────────────────── */
 
-export function ClaimsClient({ dossierId, claims }: Props) {
+export function ClaimsClient({ dossierId, claims, entities }: Props) {
   const router = useRouter();
   const [viewMode, setViewMode] = useState<ViewMode>("list");
   const [filterStatus, setFilterStatus] = useState<string>("all");
   const [editingId, setEditingId] = useState<string | null>(null);
+  const [linkTargetClaimId, setLinkTargetClaimId] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
 
   const filtered = useMemo(() => {
@@ -556,6 +598,21 @@ export function ClaimsClient({ dossierId, claims }: Props) {
     }
     return counts;
   }, [claims]);
+
+  const linkTarget = useMemo<LinkTarget | null>(() => {
+    const claim = claims.find((item) => item.id === linkTargetClaimId);
+    if (!claim) return null;
+
+    return {
+      kind: "claim",
+      id: claim.id,
+      label:
+        claim.statement.length > 180
+          ? `${claim.statement.slice(0, 180)}…`
+          : claim.statement,
+      contextSnippet: claim.statement,
+    };
+  }, [claims, linkTargetClaimId]);
 
   const handleStatusChange = (claimId: string, newStatus: ClaimStatus) => {
     startTransition(async () => {
@@ -733,6 +790,7 @@ export function ClaimsClient({ dossierId, claims }: Props) {
           onStatusChange={handleStatusChange}
           onEdit={setEditingId}
           onDelete={handleDelete}
+          onLinkEntity={(claim) => setLinkTargetClaimId(claim.id)}
           editingId={editingId}
           onSaveEdit={handleSaveEdit}
           onCancelEdit={() => setEditingId(null)}
@@ -760,6 +818,7 @@ export function ClaimsClient({ dossierId, claims }: Props) {
               onStatusChange={handleStatusChange}
               onEdit={setEditingId}
               onDelete={handleDelete}
+              onLinkEntity={(claim) => setLinkTargetClaimId(claim.id)}
               editingId={editingId}
               onSaveEdit={handleSaveEdit}
               onCancelEdit={() => setEditingId(null)}
@@ -767,6 +826,14 @@ export function ClaimsClient({ dossierId, claims }: Props) {
           ))}
         </div>
       )}
+
+      <EntityLinkModal
+        dossierId={dossierId}
+        entities={entities}
+        open={linkTarget != null}
+        target={linkTarget}
+        onClose={() => setLinkTargetClaimId(null)}
+      />
     </div>
   );
 }

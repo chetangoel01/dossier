@@ -36,6 +36,17 @@ export async function getClaims(dossierId: string, userId: string) {
           },
         },
       },
+      entities: {
+        select: {
+          entity: {
+            select: {
+              id: true,
+              name: true,
+              type: true,
+            },
+          },
+        },
+      },
     },
   });
 }
@@ -74,6 +85,17 @@ export async function getClaimsForSource(
               id: true,
               quote_text: true,
               label: true,
+            },
+          },
+        },
+      },
+      entities: {
+        select: {
+          entity: {
+            select: {
+              id: true,
+              name: true,
+              type: true,
             },
           },
         },
