@@ -133,6 +133,14 @@ a:hover {
   text-underline-offset: 2px;
 }
 
+dialog[open] {
+  margin: auto;
+}
+
+dialog::backdrop {
+  background-color: rgba(31, 41, 51, 0.28);
+}
+
 /* ============================================================
    BASE COMPONENT STYLES
    ============================================================ */
@@ -255,6 +263,27 @@ textarea.input {
   border: var(--border-thin) solid var(--color-border);
   border-radius: var(--radius-md);
   box-shadow: var(--shadow-panel);
+}
+
+.dossier-row-link {
+  color: inherit;
+  cursor: pointer;
+  transition:
+    background-color var(--duration-fast) ease,
+    color var(--duration-fast) ease;
+}
+
+.dossier-row-link:hover {
+  background-color: var(--color-bg-selected);
+  text-decoration: none;
+}
+
+.dossier-row-link:focus-visible {
+  outline: 2px solid var(--color-accent-ink);
+  outline-offset: -2px;
+  position: relative;
+  z-index: 1;
+  text-decoration: none;
 }
 
 /* ------ Chips ------ */
