@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useState } from "react";
 import { NewDossierModal } from "./NewDossierModal";
 import type { DossierListItem } from "@/server/queries/dossiers";
@@ -46,8 +47,10 @@ export function DossiersClient({ dossiers }: DossiersClientProps) {
           style={{ overflow: "hidden" }}
         >
           {dossiers.map((dossier, i) => (
-            <div
+            <Link
               key={dossier.id}
+              href={`/dossiers/${dossier.id}/overview`}
+              className="dossier-row-link"
               style={{
                 padding: "1rem 1.25rem",
                 display: "flex",
@@ -58,6 +61,7 @@ export function DossiersClient({ dossiers }: DossiersClientProps) {
                   i < dossiers.length - 1
                     ? "var(--border-thin) solid var(--color-border)"
                     : undefined,
+                textDecoration: "none",
               }}
             >
               <div style={{ minWidth: 0 }}>
@@ -132,7 +136,7 @@ export function DossiersClient({ dossiers }: DossiersClientProps) {
                   {STATUS_LABEL[dossier.status] ?? dossier.status}
                 </span>
               </div>
-            </div>
+            </Link>
           ))}
         </div>
       )}
