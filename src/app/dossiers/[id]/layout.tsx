@@ -3,6 +3,7 @@ import Link from "next/link";
 import { auth } from "@/auth";
 import { getDossier } from "@/server/queries/dossiers";
 import { WorkspaceTabBar } from "@/components/dossiers/WorkspaceTabBar";
+import { GlobalSearchBar } from "@/components/search/GlobalSearchBar";
 
 interface DossierLayoutProps {
   children: React.ReactNode;
@@ -80,6 +81,10 @@ export default async function DossierLayout({
           >
             {dossier.status}
           </span>
+        </div>
+
+        <div className="flex-1 flex justify-end min-w-0">
+          <GlobalSearchBar dossierId={id} />
         </div>
       </header>
 

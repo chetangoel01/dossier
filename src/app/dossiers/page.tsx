@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { auth, signOut } from "@/auth";
 import { getDossiers } from "@/server/queries/dossiers";
 import { DossiersClient } from "@/components/dossiers/DossiersClient";
+import { GlobalSearchBar } from "@/components/search/GlobalSearchBar";
 
 export const metadata: Metadata = {
   title: "Dossiers — Dossier",
@@ -68,6 +69,10 @@ export default async function DossiersPage() {
               Sign out
             </button>
           </form>
+        </div>
+
+        <div style={{ marginBottom: "1.5rem" }}>
+          <GlobalSearchBar />
         </div>
 
         <DossiersClient dossiers={dossiers} />
