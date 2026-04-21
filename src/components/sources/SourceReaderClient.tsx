@@ -606,6 +606,7 @@ export function SourceReaderClient({
                 return (
                   <div
                     key={h.id}
+                    id={`highlight-${h.id}`}
                     style={{
                       padding: "0.5rem",
                       borderLeft:
