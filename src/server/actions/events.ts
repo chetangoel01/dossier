@@ -174,11 +174,21 @@ export async function updateEvent(
 
   const event = await db.event.findFirst({
     where: { id: input.id, dossier: { owner_id: session.user.id } },
-    select: { id: true, dossier_id: true, precision: true },
+    select: {
+      id: true,
+      dossier_id: true,
+      precision: true,
+      event_date: true,
+    },
   });
   if (!event) return { error: "Event not found." };
 
   const nextPrecision: EventPrecision = input.precision ?? event.precision;
+  const effectiveDate =
+    input.eventDate !== undefined ? input.eventDate : event.event_date;
+
+  if (nextPrecision !== "unknown" && !effectiveDate)
+    return { error: "Event date is required for this precision." };
 
   if (input.claimId) {
     const claim = await db.claim.findFirst({
@@ -205,10 +215,7 @@ export async function updateEvent(
     data.confidence = input.confidence ?? null;
   if (input.claimId !== undefined) data.claim_id = input.claimId ?? null;
   if (input.eventDate !== undefined || input.precision !== undefined) {
-    data.event_date = normalizeEventDate(
-      input.eventDate ?? undefined,
-      nextPrecision,
-    );
+    data.event_date = normalizeEventDate(effectiveDate, nextPrecision);
   }
 
   try {

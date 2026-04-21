@@ -265,6 +265,48 @@ describe("event actions", () => {
       );
     });
 
+    it("re-snaps the existing date when only precision changes", async () => {
+      mockAuthenticatedUser();
+      mockDb.event.findFirst.mockResolvedValue(
+        buildEvent({
+          id: "evt-1",
+          dossier_id: "dos-1",
+          precision: "day",
+          event_date: new Date(Date.UTC(2026, 2, 15)),
+        }),
+      );
+      mockDb.event.update.mockResolvedValue(buildEvent({ id: "evt-1" }));
+
+      await updateEvent({ id: "evt-1", precision: "year" });
+
+      const call = mockDb.event.update.mock.calls[0][0];
+      expect(call.data.precision).toBe("year");
+      expect(call.data.event_date).toEqual(new Date(Date.UTC(2026, 0, 1)));
+    });
+
+    it("rejects a non-unknown precision update when the event has no resolvable date", async () => {
+      mockAuthenticatedUser();
+      mockDb.event.findFirst.mockResolvedValue(
+        buildEvent({
+          id: "evt-1",
+          dossier_id: "dos-1",
+          precision: "unknown",
+          event_date: null,
+        }),
+      );
+
+      const result = await updateEvent({
+        id: "evt-1",
+        precision: "day",
+        eventDate: null,
+      });
+
+      expect(result).toEqual({
+        error: "Event date is required for this precision.",
+      });
+      expect(mockDb.event.update).not.toHaveBeenCalled();
+    });
+
     it("clears the date when switching to unknown precision", async () => {
       mockAuthenticatedUser();
       mockDb.event.findFirst.mockResolvedValue(
