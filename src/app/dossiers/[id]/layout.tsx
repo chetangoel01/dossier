@@ -4,6 +4,7 @@ import { auth } from "@/auth";
 import { getDossier } from "@/server/queries/dossiers";
 import { WorkspaceTabBar } from "@/components/dossiers/WorkspaceTabBar";
 import { GlobalSearchBar } from "@/components/search/GlobalSearchBar";
+import { DossierWorkspaceShortcuts } from "@/components/command/DossierWorkspaceShortcuts";
 
 interface DossierLayoutProps {
   children: React.ReactNode;
@@ -31,6 +32,9 @@ export default async function DossierLayout({
       className="flex flex-col min-h-dvh"
       style={{ backgroundColor: "var(--color-bg-canvas)" }}
     >
+      <DossierWorkspaceShortcuts
+        dossier={{ id: dossier.id, title: dossier.title }}
+      />
       {/* Workspace header */}
       <header
         className="flex items-center gap-4 shrink-0"

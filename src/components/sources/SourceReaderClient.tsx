@@ -212,6 +212,13 @@ export function SourceReaderClient({
     target?.scrollIntoView({ behavior: "smooth", block: "center" });
   }, [activeHighlightId]);
 
+  useEffect(() => {
+    const handler = () => setInspectorOpen((prev) => !prev);
+    window.addEventListener("dossier:toggle-inspector", handler);
+    return () =>
+      window.removeEventListener("dossier:toggle-inspector", handler);
+  }, []);
+
   return (
     <div
       style={{
