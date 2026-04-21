@@ -1,7 +1,8 @@
 "use client";
 
-import { useState, useTransition, useMemo } from "react";
+import { useEffect, useMemo, useState, useTransition } from "react";
 import Link from "next/link";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { CaptureSourceModal } from "./CaptureSourceModal";
 import { SourceFilterBar } from "./SourceFilterBar";
 import { SourceStatusMenu } from "./SourceStatusMenu";
@@ -84,6 +85,18 @@ export function SourcesClient({ dossierId, sources }: Props) {
   const [typeFilter, setTypeFilter] = useState<SourceType | "all">("all");
   const [statusFilter, setStatusFilter] = useState<SourceStatus | "all">("all");
   const [isPending, startTransition] = useTransition();
+  const searchParams = useSearchParams();
+  const pathname = usePathname();
+  const router = useRouter();
+
+  // Open the capture modal when the command bar navigates here with ?capture=1,
+  // then strip the query so reloads don't reopen it.
+  useEffect(() => {
+    if (searchParams.get("capture") === "1") {
+      setModalOpen(true);
+      router.replace(pathname);
+    }
+  }, [searchParams, pathname, router]);
 
   const filtered = useMemo(() => {
     return sources.filter((s) => {

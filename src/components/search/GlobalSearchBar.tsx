@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 
 interface GlobalSearchBarProps {
   dossierId?: string;
@@ -15,25 +15,11 @@ export function GlobalSearchBar({
   placeholder,
 }: GlobalSearchBarProps) {
   const router = useRouter();
-  const inputRef = useRef<HTMLInputElement>(null);
   const [value, setValue] = useState(initialQuery);
 
   useEffect(() => {
     setValue(initialQuery);
   }, [initialQuery]);
-
-  // Keyboard shortcut: ⌘/Ctrl-K focuses the bar.
-  useEffect(() => {
-    const handler = (event: KeyboardEvent) => {
-      if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "k") {
-        event.preventDefault();
-        inputRef.current?.focus();
-        inputRef.current?.select();
-      }
-    };
-    window.addEventListener("keydown", handler);
-    return () => window.removeEventListener("keydown", handler);
-  }, []);
 
   function handleSubmit(event: React.FormEvent) {
     event.preventDefault();
@@ -82,7 +68,6 @@ export function GlobalSearchBar({
           ⌕
         </span>
         <input
-          ref={inputRef}
           type="search"
           name="q"
           value={value}
@@ -104,6 +89,7 @@ export function GlobalSearchBar({
         />
         <span
           aria-hidden
+          title="Open command bar"
           className="hidden sm:inline"
           style={{
             fontFamily: "var(--font-mono)",

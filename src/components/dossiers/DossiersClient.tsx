@@ -1,7 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { useEffect, useState } from "react";
 import { NewDossierModal } from "./NewDossierModal";
 import type { DossierListItem } from "@/server/queries/dossiers";
 
@@ -17,6 +18,18 @@ const STATUS_LABEL: Record<string, string> = {
 
 export function DossiersClient({ dossiers }: DossiersClientProps) {
   const [modalOpen, setModalOpen] = useState(false);
+  const searchParams = useSearchParams();
+  const pathname = usePathname();
+  const router = useRouter();
+
+  // Open the modal when the command bar navigates here with ?new=1, then
+  // strip the query so reloads don't reopen it.
+  useEffect(() => {
+    if (searchParams.get("new") === "1") {
+      setModalOpen(true);
+      router.replace(pathname);
+    }
+  }, [searchParams, pathname, router]);
 
   return (
     <>
