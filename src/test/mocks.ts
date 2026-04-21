@@ -28,16 +28,21 @@ export const mockDb = {
     ["findFirst", "findMany", "create", "update", "delete"] as const,
   ),
   highlight: createDelegate(
-    ["findFirst", "findMany", "create", "delete"] as const,
+    ["findFirst", "findMany", "create", "delete", "count"] as const,
   ),
   claim: createDelegate(
     ["findFirst", "findMany", "create", "update", "delete"] as const,
   ),
   entity: createDelegate(
-    ["findFirst", "findMany", "create", "update", "delete"] as const,
+    ["findFirst", "findMany", "create", "update", "delete", "count"] as const,
   ),
   mention: createDelegate(["findFirst", "create"] as const),
   claimEntity: createDelegate(["upsert"] as const),
+  event: createDelegate(
+    ["findFirst", "findMany", "create", "update", "delete"] as const,
+  ),
+  eventHighlight: createDelegate(["upsert", "delete"] as const),
+  eventEntity: createDelegate(["upsert", "delete"] as const),
 } as const;
 
 function resetDelegate(delegate: MockDelegate) {
@@ -69,6 +74,9 @@ export function resetTestMocks() {
   resetDelegate(mockDb.entity);
   resetDelegate(mockDb.mention);
   resetDelegate(mockDb.claimEntity);
+  resetDelegate(mockDb.event);
+  resetDelegate(mockDb.eventHighlight);
+  resetDelegate(mockDb.eventEntity);
 }
 
 export function mockAuthenticatedUser(userId = "user-1") {
