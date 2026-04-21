@@ -43,6 +43,7 @@ export const mockDb = {
   ),
   eventHighlight: createDelegate(["upsert", "delete"] as const),
   eventEntity: createDelegate(["upsert", "delete"] as const),
+  brief: createDelegate(["findFirst", "create", "update", "upsert"] as const),
 } as const;
 
 function resetDelegate(delegate: MockDelegate) {
@@ -77,6 +78,7 @@ export function resetTestMocks() {
   resetDelegate(mockDb.event);
   resetDelegate(mockDb.eventHighlight);
   resetDelegate(mockDb.eventEntity);
+  resetDelegate(mockDb.brief);
 }
 
 export function mockAuthenticatedUser(userId = "user-1") {
