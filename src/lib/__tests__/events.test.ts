@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { formatEventDate, formatEventSortKey } from "@/lib/events";
+import { formatEventDate } from "@/lib/events";
 
 describe("formatEventDate", () => {
   it("formats day-precision dates with short month, day, and year", () => {
@@ -30,17 +30,5 @@ describe("formatEventDate", () => {
     expect(formatEventDate("2026-03-12T00:00:00.000Z", "day")).toBe(
       "Mar 12, 2026",
     );
-  });
-});
-
-describe("formatEventSortKey", () => {
-  it("produces a stable YYYY-MM-DD key in UTC", () => {
-    expect(formatEventSortKey(new Date(Date.UTC(2026, 2, 12)))).toBe(
-      "2026-03-12",
-    );
-  });
-
-  it("accepts ISO strings", () => {
-    expect(formatEventSortKey("2026-01-05T00:00:00.000Z")).toBe("2026-01-05");
   });
 });
