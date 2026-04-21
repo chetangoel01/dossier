@@ -147,6 +147,7 @@ export function EntitiesClient({
             {entities.map((entity) => (
               <div
                 key={entity.id}
+                id={`entity-row-${entity.id}`}
                 className="panel-raised"
                 style={{ padding: "1rem 1.125rem" }}
               >

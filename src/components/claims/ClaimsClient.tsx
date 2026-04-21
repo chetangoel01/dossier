@@ -232,6 +232,7 @@ function ClaimCard({
 
   return (
     <div
+      id={`claim-${claim.id}`}
       className={`panel ${compact ? "py-3 px-4" : "py-4 px-5"}`}
       style={{
         borderLeft: "var(--border-rule) solid var(--color-accent-ink)",

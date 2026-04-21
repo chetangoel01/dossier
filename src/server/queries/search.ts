@@ -400,7 +400,7 @@ async function searchEntities(
     snippet: cleanSnippet(row.snippet),
     dossierId: row.dossier_id,
     dossierTitle: row.dossier_title,
-    href: `/dossiers/${row.dossier_id}/entities#entity-${row.id}`,
+    href: `/dossiers/${row.dossier_id}/entities#entity-row-${row.id}`,
     rank: Number(row.rank),
   }));
 }

@@ -117,7 +117,7 @@ describe("searchWorkspace", () => {
     });
     expect(result.groups.entity[0]).toMatchObject({
       type: "entity",
-      href: "/dossiers/dos-1/entities#entity-ent-1",
+      href: "/dossiers/dos-1/entities#entity-row-ent-1",
     });
     expect(result.groups.brief[0]).toMatchObject({
       type: "brief",
