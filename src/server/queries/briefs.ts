@@ -50,3 +50,45 @@ export async function getOrCreateBrief(
     select: briefSelect,
   });
 }
+
+/**
+ * Fetch the evidence pool available to the brief editor: every source in the
+ * dossier, each with its highlights. Used to populate the evidence drawer
+ * where users pick citations to insert into the brief body.
+ */
+export async function getBriefEvidence(dossierId: string, userId: string) {
+  const sources = await db.source.findMany({
+    where: {
+      dossier_id: dossierId,
+      dossier: { owner_id: userId },
+    },
+    orderBy: [{ captured_at: "desc" }, { title: "asc" }],
+    select: {
+      id: true,
+      title: true,
+      type: true,
+      author: true,
+      publisher: true,
+      captured_at: true,
+      highlights: {
+        orderBy: { start_offset: "asc" },
+        select: {
+          id: true,
+          source_id: true,
+          quote_text: true,
+          start_offset: true,
+          end_offset: true,
+          page_number: true,
+          label: true,
+          annotation: true,
+        },
+      },
+    },
+  });
+  return sources;
+}
+
+export type BriefEvidenceSource = Awaited<
+  ReturnType<typeof getBriefEvidence>
+>[number];
+export type BriefEvidenceHighlight = BriefEvidenceSource["highlights"][number];

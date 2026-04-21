@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { notFound, redirect } from "next/navigation";
 import { auth } from "@/auth";
-import { getOrCreateBrief } from "@/server/queries/briefs";
+import { getBriefEvidence, getOrCreateBrief } from "@/server/queries/briefs";
 import { BriefEditorClient } from "@/components/briefs/BriefEditorClient";
 
 export const metadata: Metadata = {
@@ -19,7 +19,10 @@ export default async function BriefPage({ params }: BriefPageProps) {
   }
 
   const { id } = await params;
-  const brief = await getOrCreateBrief(id, session.user.id);
+  const [brief, evidence] = await Promise.all([
+    getOrCreateBrief(id, session.user.id),
+    getBriefEvidence(id, session.user.id),
+  ]);
 
   if (!brief) {
     notFound();
@@ -33,6 +36,7 @@ export default async function BriefPage({ params }: BriefPageProps) {
         body_markdown: brief.body_markdown,
         updated_at: brief.updated_at,
       }}
+      evidence={evidence}
     />
   );
 }
