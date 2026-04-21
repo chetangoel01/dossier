@@ -21,6 +21,7 @@ import {
   type CitationRef,
 } from "@/lib/citations";
 import { CitationToken } from "./CitationToken";
+import { BriefExportMenu } from "./BriefExportMenu";
 
 interface BriefSnapshot {
   title: string;
@@ -451,6 +452,10 @@ export function BriefEditorClient({
                 </button>
               ))}
             </div>
+            <BriefExportMenu
+              dossierId={dossierId}
+              disabled={status === "saving" || status === "dirty"}
+            />
             <span
               role="status"
               aria-live="polite"
