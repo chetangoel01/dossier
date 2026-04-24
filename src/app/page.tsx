@@ -1,49 +1,104 @@
+import Link from "next/link";
+import { redirect } from "next/navigation";
+import { auth } from "@/auth";
 import { SectionFrame } from "@/components/ui/SectionFrame";
+import { WorkflowStrip } from "@/components/ui/WorkflowStrip";
 
-export default function Home() {
+export default async function Home() {
+  const session = await auth();
+  if (session?.user) {
+    redirect("/dossiers");
+  }
+
   return (
     <main style={{ minHeight: "100dvh", backgroundColor: "var(--color-bg-canvas)" }}>
       <SectionFrame>
-        <h1 style={{ marginBottom: "0.5rem" }}>Dossier</h1>
-        <p className="text-muted" style={{ fontFamily: "var(--font-sans)", marginBottom: "2rem" }}>
-          A private, evidence-first research workspace.
-        </p>
+        <header
+          style={{
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "baseline",
+            marginBottom: "5rem",
+          }}
+        >
+          <span
+            style={{
+              fontFamily: "var(--font-display)",
+              fontSize: "1.125rem",
+              fontWeight: 600,
+              letterSpacing: "0.01em",
+            }}
+          >
+            Dossier
+          </span>
+          <Link
+            href="/login"
+            className="btn btn-ghost"
+            style={{ fontFamily: "var(--font-sans)", fontSize: "0.875rem" }}
+          >
+            Sign in
+          </Link>
+        </header>
 
-        <hr className="divider" style={{ marginBottom: "2rem" }} />
-
-        <div style={{ display: "flex", flexDirection: "column", gap: "0.75rem", marginBottom: "2rem" }}>
-          <h3 style={{ fontFamily: "var(--font-display)" }}>Typography</h3>
-          <p style={{ fontFamily: "var(--font-sans)", color: "var(--color-ink-secondary)" }}>
-            Body copy in IBM Plex Sans. Dense without feeling busy.
+        <section style={{ maxWidth: "44rem", marginBottom: "4rem" }}>
+          <h1
+            style={{
+              fontFamily: "var(--font-display)",
+              fontSize: "clamp(2.5rem, 5vw, 3.75rem)",
+              lineHeight: 1.1,
+              fontWeight: 500,
+              marginBottom: "1.5rem",
+            }}
+          >
+            Evidence-first research,{" "}
+            <em style={{ fontStyle: "italic", fontWeight: 500 }}>end to end</em>.
+          </h1>
+          <p
+            style={{
+              fontFamily: "var(--font-sans)",
+              fontSize: "1.125rem",
+              lineHeight: 1.55,
+              color: "var(--color-ink-secondary)",
+              marginBottom: "2rem",
+              maxWidth: "36rem",
+            }}
+          >
+            Capture sources, mark the passages that matter, build briefs that cite
+            themselves. A private analyst&apos;s workbench &mdash; not a notes app.
           </p>
-          <p className="text-mono" style={{ fontSize: "0.875rem", color: "var(--color-ink-secondary)" }}>
-            Citation metadata · source/001 · p. 12 · IBM Plex Mono
-          </p>
-        </div>
+          <div style={{ display: "flex", alignItems: "baseline", gap: "1.5rem" }}>
+            <Link href="/signup" className="btn btn-primary">
+              Start a dossier
+            </Link>
+            <Link
+              href="/login"
+              style={{
+                fontFamily: "var(--font-sans)",
+                fontSize: "0.9375rem",
+                color: "var(--color-ink-secondary)",
+                textDecoration: "underline",
+                textUnderlineOffset: "0.25em",
+              }}
+            >
+              Already have an account? Sign in
+            </Link>
+          </div>
+        </section>
 
-        <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap", marginBottom: "2rem" }}>
-          <button className="btn btn-primary">Primary</button>
-          <button className="btn btn-secondary">Secondary</button>
-          <button className="btn btn-ghost">Ghost</button>
-          <button className="btn btn-danger">Danger</button>
-        </div>
+        <hr className="divider" style={{ marginBottom: "2.5rem" }} />
 
-        <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap", marginBottom: "2rem" }}>
-          <span className="chip">unreviewed</span>
-          <span className="chip chip-citation">src/001</span>
-          <span className="chip chip-success">supported</span>
-          <span className="chip chip-alert">contested</span>
-          <span className="chip chip-warning">draft</span>
-        </div>
+        <section style={{ marginBottom: "5rem" }}>
+          <WorkflowStrip />
+        </section>
 
-        <div className="panel-raised" style={{ padding: "1.25rem", marginBottom: "2rem" }}>
-          <p className="rule-left" style={{ fontFamily: "var(--font-mono)", fontSize: "0.875rem", color: "var(--color-ink-secondary)" }}>
-            &ldquo;Evidence cards use a left rule and source stamp &mdash; not loud drop shadows.&rdquo;
-          </p>
-        </div>
-
-        <p style={{ fontFamily: "var(--font-mono)", fontSize: "0.75rem", color: "var(--color-ink-secondary)" }}>
-          Research workspace — coming soon.
+        <p
+          className="text-mono"
+          style={{
+            fontSize: "0.75rem",
+            color: "var(--color-ink-secondary)",
+          }}
+        >
+          Private workspace · your sources stay yours
         </p>
       </SectionFrame>
     </main>
