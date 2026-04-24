@@ -7,6 +7,21 @@ const pool = new Pool({ connectionString: process.env.DATABASE_URL });
 const adapter = new PrismaPg(pool);
 const prisma = new PrismaClient({ adapter });
 
+// Resolve highlight offsets from the real raw_text so edits to source copy
+// cannot silently desync the evidence-gutter bands in the reader.
+function findOffsets(
+  text: string,
+  quote: string,
+): { start_offset: number; end_offset: number } {
+  const start = text.indexOf(quote);
+  if (start < 0) {
+    throw new Error(
+      `Seed integrity error: highlight quote not found in source text.\nQuote: ${JSON.stringify(quote.slice(0, 80))}...`,
+    );
+  }
+  return { start_offset: start, end_offset: start + quote.length };
+}
+
 async function main() {
   console.log("Seeding demo data...");
 
@@ -63,15 +78,7 @@ async function main() {
 
   // ─── Sources ─────────────────────────────────────────────────────────────────
 
-  const sourceFdaLetter = await prisma.source.create({
-    data: {
-      dossier_id: dossier.id,
-      type: "pdf",
-      title: "FDA Warning Letter — Northgate Pharma (WL-2024-0108)",
-      author: "U.S. Food and Drug Administration",
-      publisher: "FDA",
-      published_at: new Date("2024-01-08"),
-      raw_text: `Dear Mr. Harrington,
+  const fdaLetterText = `Dear Mr. Harrington,
 
 During our inspection of Northgate Pharmaceutical Inc., 4200 Research Triangle Pkwy, Raleigh, NC, conducted October 16–November 2, 2023, our investigator(s) identified significant violations of Current Good Manufacturing Practice (CGMP) regulations for finished pharmaceuticals, Title 21, Code of Federal Regulations, Parts 210 and 211.
 
@@ -83,7 +90,17 @@ Specifically, we found:
 
 3. Your firm failed to exercise appropriate controls over computer or related systems to assure that only authorized personnel institute changes in master production records (21 CFR 211.68(b)). Audit log analysis revealed 47 instances of data backdating between March 2022 and September 2023.
 
-We acknowledge receipt of your response dated November 30, 2023. After reviewing your response, we conclude it does not adequately address our concerns. Failure to promptly correct these violations may result in legal action without further notice, including, without limitation, seizure and injunction.`,
+We acknowledge receipt of your response dated November 30, 2023. After reviewing your response, we conclude it does not adequately address our concerns. Failure to promptly correct these violations may result in legal action without further notice, including, without limitation, seizure and injunction.`;
+
+  const sourceFdaLetter = await prisma.source.create({
+    data: {
+      dossier_id: dossier.id,
+      type: "pdf",
+      title: "FDA Warning Letter — Northgate Pharma (WL-2024-0108)",
+      author: "U.S. Food and Drug Administration",
+      publisher: "FDA",
+      published_at: new Date("2024-01-08"),
+      raw_text: fdaLetterText,
       summary:
         "FDA identifies three CGMP violations: inadequate batch documentation, equipment contamination, and 47 instances of audit log backdating over 18 months.",
       credibility_rating: 5,
@@ -97,6 +114,16 @@ We acknowledge receipt of your response dated November 30, 2023. After reviewing
     },
   });
 
+  const reutersText = `Shares of Northgate Pharmaceutical Inc. fell as much as 18% on Thursday after the company disclosed it had received an FDA warning letter citing data integrity failures and manufacturing control deficiencies at its Raleigh, North Carolina facility.
+
+The warning letter, dated January 8, 2024, is the company's second regulatory action in four years. In 2020, Northgate received a Form 483 observation letter citing similar documentation gaps at the same facility, raising questions about whether management took adequate corrective action.
+
+"This is not a first offense situation," said Elena Vasquez, a pharmaceutical regulatory consultant at Meridian Advisory Group. "The 2020 observations were a clear warning. If Northgate's board was paying attention, they knew the risk."
+
+Northgate's Chief Scientific Officer, Dr. Sandra Wei, issued a statement saying the company "respectfully disagrees with several characterizations in the letter" and has initiated a comprehensive remediation program with an outside consultant.
+
+Analysts at Morgan Stanley estimated the financial impact at between $40M and $120M depending on whether the FDA proceeds to a consent decree. The company's Raleigh facility accounts for approximately 34% of total revenue.`;
+
   const sourceReuters = await prisma.source.create({
     data: {
       dossier_id: dossier.id,
@@ -107,15 +134,7 @@ We acknowledge receipt of your response dated November 30, 2023. After reviewing
       author: "Priya Chandrasekaran",
       publisher: "Reuters",
       published_at: new Date("2024-01-11"),
-      raw_text: `Shares of Northgate Pharmaceutical Inc. fell as much as 18% on Thursday after the company disclosed it had received an FDA warning letter citing data integrity failures and manufacturing control deficiencies at its Raleigh, North Carolina facility.
-
-The warning letter, dated January 8, 2024, is the company's second regulatory action in four years. In 2020, Northgate received a Form 483 observation letter citing similar documentation gaps at the same facility, raising questions about whether management took adequate corrective action.
-
-"This is not a first offense situation," said Elena Vasquez, a pharmaceutical regulatory consultant at Meridian Advisory Group. "The 2020 observations were a clear warning. If Northgate's board was paying attention, they knew the risk."
-
-Northgate's Chief Scientific Officer, Dr. Sandra Wei, issued a statement saying the company "respectfully disagrees with several characterizations in the letter" and has initiated a comprehensive remediation program with an outside consultant.
-
-Analysts at Morgan Stanley estimated the financial impact at between $40M and $120M depending on whether the FDA proceeds to a consent decree. The company's Raleigh facility accounts for approximately 34% of total revenue.`,
+      raw_text: reutersText,
       summary:
         "Reuters coverage of the FDA warning letter disclosure. Notes prior 2020 Form 483 at same facility, analyst estimates of $40M-$120M exposure, and CSO Dr. Sandra Wei's public response.",
       credibility_rating: 4,
@@ -126,14 +145,7 @@ Analysts at Morgan Stanley estimated the financial impact at between $40M and $1
     },
   });
 
-  const sourceMemo = await prisma.source.create({
-    data: {
-      dossier_id: dossier.id,
-      type: "internal_memo",
-      title: "Internal QA Escalation Memo — Raleigh Facility (June 2022)",
-      author: "Raymond Chu, VP Quality Assurance",
-      published_at: new Date("2022-06-14"),
-      raw_text: `TO: Sandra Wei, CSO; David Harrington, CEO
+  const memoText = `TO: Sandra Wei, CSO; David Harrington, CEO
 FROM: Raymond Chu, VP Quality Assurance
 DATE: June 14, 2022
 RE: Escalation — Line 3 Sterile Fill Data Integrity Concerns
@@ -146,7 +158,16 @@ I raised this with the site Quality Director on March 18, 2022. No corrective ac
 
 I am formally requesting executive sign-off on a CAPA within 30 days.
 
-Raymond Chu`,
+Raymond Chu`;
+
+  const sourceMemo = await prisma.source.create({
+    data: {
+      dossier_id: dossier.id,
+      type: "internal_memo",
+      title: "Internal QA Escalation Memo — Raleigh Facility (June 2022)",
+      author: "Raymond Chu, VP Quality Assurance",
+      published_at: new Date("2022-06-14"),
+      raw_text: memoText,
       summary:
         "Internal QA memo from June 2022 documenting data integrity concerns on Line 3 escalated to CSO and CEO. Chu notes the issue was first raised in March 2022 with no corrective action taken.",
       credibility_rating: 5,
@@ -160,14 +181,7 @@ Raymond Chu`,
     },
   });
 
-  const sourceExpertInterview = await prisma.source.create({
-    data: {
-      dossier_id: dossier.id,
-      type: "pasted_text",
-      title: "Expert Interview — Dr. Marcus Obi, Former FDA Investigator",
-      author: "Dr. Marcus Obi",
-      published_at: new Date("2024-02-15"),
-      raw_text: `Q: How serious are audit log backdating findings in FDA warning letters?
+  const interviewText = `Q: How serious are audit log backdating findings in FDA warning letters?
 
 A: They're among the most serious findings we can make. Audit trail manipulation goes to the fundamental integrity of the GMP data system. It's not a paperwork error — it's a data integrity failure. The agency has been exceptionally aggressive on this since 2016.
 
@@ -177,11 +191,48 @@ A: Forty-seven instances is not rogue behavior by a single employee. That patter
 
 Q: What's the risk of a consent decree here?
 
-A: If the company had a prior 483 at the same site and documentation gaps weren't fully remediated, the probability of a consent decree is high. I'd put it above 50%. The financial range analysts are quoting — $40M to $120M — honestly, consent decrees for facilities this size can run higher if they include facility remediation requirements. I would not anchor to that lower number.`,
+A: If the company had a prior 483 at the same site and documentation gaps weren't fully remediated, the probability of a consent decree is high. I'd put it above 50%. The financial range analysts are quoting — $40M to $120M — honestly, consent decrees for facilities this size can run higher if they include facility remediation requirements. I would not anchor to that lower number.`;
+
+  const sourceExpertInterview = await prisma.source.create({
+    data: {
+      dossier_id: dossier.id,
+      type: "pasted_text",
+      title: "Expert Interview — Dr. Marcus Obi, Former FDA Investigator",
+      author: "Dr. Marcus Obi",
+      published_at: new Date("2024-02-15"),
+      raw_text: interviewText,
       summary:
         "Interview with former FDA investigator Dr. Marcus Obi. Characterizes the backdating pattern as a management failure, not isolated misconduct. Consent decree probability assessed at above 50%. Skeptical of analyst $40M floor.",
       credibility_rating: 4,
       source_status: "reviewing",
+    },
+  });
+
+  // An unreviewed source demonstrates the capture → triage pipeline: a
+  // freshly-clipped piece of evidence that still needs the researcher's
+  // attention.
+  const sourceShareholderLetter = await prisma.source.create({
+    data: {
+      dossier_id: dossier.id,
+      type: "web_link",
+      title:
+        "Northgate 2023 Annual Shareholder Letter (excerpt): 'industry-leading quality culture'",
+      url: "https://example.com/northgate-2023-annual-letter",
+      author: "David Harrington, CEO",
+      publisher: "Northgate Pharmaceutical Inc.",
+      published_at: new Date("2023-03-22"),
+      raw_text: `To our shareholders,
+
+The past fiscal year reflected disciplined execution across every function of the business. Our Raleigh facility continues to operate under an industry-leading quality culture and remains central to our long-term growth thesis. Investments in quality systems and data integrity programs, made consistently over the past three years, distinguish Northgate from peer manufacturers facing regulatory headwinds.
+
+We are confident in the compliance posture of our manufacturing network as we enter 2024.
+
+— David Harrington, CEO`,
+      summary:
+        "CEO letter from March 2023 asserting an 'industry-leading quality culture' at the Raleigh facility — sits in direct tension with the contemporaneous internal QA escalation.",
+      credibility_rating: 3,
+      source_status: "unreviewed",
+      tags: { create: [{ tag_id: tagFinancial.id }] },
     },
   });
 
@@ -192,8 +243,10 @@ A: If the company had a prior 483 at the same site and documentation gaps weren'
       source_id: sourceFdaLetter.id,
       quote_text:
         "Audit log analysis revealed 47 instances of data backdating between March 2022 and September 2023.",
-      start_offset: 1402,
-      end_offset: 1483,
+      ...findOffsets(
+        fdaLetterText,
+        "Audit log analysis revealed 47 instances of data backdating between March 2022 and September 2023.",
+      ),
       label: "stat",
       annotation: "Core finding — 18-month window of systematic backdating.",
     },
@@ -204,8 +257,10 @@ A: If the company had a prior 483 at the same site and documentation gaps weren'
       source_id: sourceFdaLetter.id,
       quote_text:
         "Sterile filling Line 3 exhibited visible particulate contamination residue from prior production runs. No documented cleaning verification was performed between October 4–12, 2023.",
-      start_offset: 1021,
-      end_offset: 1183,
+      ...findOffsets(
+        fdaLetterText,
+        "Sterile filling Line 3 exhibited visible particulate contamination residue from prior production runs. No documented cleaning verification was performed between October 4–12, 2023.",
+      ),
       label: "evidence",
       annotation: "Physical contamination distinct from data integrity issue.",
     },
@@ -216,8 +271,10 @@ A: If the company had a prior 483 at the same site and documentation gaps weren'
       source_id: sourceReuters.id,
       quote_text:
         "In 2020, Northgate received a Form 483 observation letter citing similar documentation gaps at the same facility, raising questions about whether management took adequate corrective action.",
-      start_offset: 371,
-      end_offset: 546,
+      ...findOffsets(
+        reutersText,
+        "In 2020, Northgate received a Form 483 observation letter citing similar documentation gaps at the same facility, raising questions about whether management took adequate corrective action.",
+      ),
       label: "evidence",
       annotation: "Prior notice — company was on record as knowing the risk.",
     },
@@ -228,8 +285,10 @@ A: If the company had a prior 483 at the same site and documentation gaps weren'
       source_id: sourceMemo.id,
       quote_text:
         "I raised this with the site Quality Director on March 18, 2022. No corrective action plan has been issued.",
-      start_offset: 621,
-      end_offset: 724,
+      ...findOffsets(
+        memoText,
+        "I raised this with the site Quality Director on March 18, 2022. No corrective action plan has been issued.",
+      ),
       label: "evidence",
       annotation:
         "Internal escalation with no follow-through. March 2022 is 21 months before FDA inspection.",
@@ -241,8 +300,10 @@ A: If the company had a prior 483 at the same site and documentation gaps weren'
       source_id: sourceMemo.id,
       quote_text:
         "I am formally requesting executive sign-off on a CAPA within 30 days.",
-      start_offset: 810,
-      end_offset: 876,
+      ...findOffsets(
+        memoText,
+        "I am formally requesting executive sign-off on a CAPA within 30 days.",
+      ),
       label: "quote",
       annotation:
         "Chu put leadership on notice in writing. Key document for knowledge timeline.",
@@ -254,8 +315,10 @@ A: If the company had a prior 483 at the same site and documentation gaps weren'
       source_id: sourceExpertInterview.id,
       quote_text:
         "Forty-seven instances is not rogue behavior by a single employee. That pattern, sustained over 18 months, tells me there was either a cultural tolerance for this or it was tacitly encouraged.",
-      start_offset: 482,
-      end_offset: 663,
+      ...findOffsets(
+        interviewText,
+        "Forty-seven instances is not rogue behavior by a single employee. That pattern, sustained over 18 months, tells me there was either a cultural tolerance for this or it was tacitly encouraged.",
+      ),
       label: "quote",
       annotation:
         "Expert opinion framing this as a management/culture failure, not individual misconduct.",
@@ -265,10 +328,8 @@ A: If the company had a prior 483 at the same site and documentation gaps weren'
   const hl7 = await prisma.highlight.create({
     data: {
       source_id: sourceExpertInterview.id,
-      quote_text:
-        "I would not anchor to that lower number.",
-      start_offset: 1201,
-      end_offset: 1241,
+      quote_text: "I would not anchor to that lower number.",
+      ...findOffsets(interviewText, "I would not anchor to that lower number."),
       label: "counterpoint",
       annotation:
         "Expert explicitly pushes back on the $40M floor estimate used by analysts.",
@@ -373,6 +434,18 @@ A: If the company had a prior 483 at the same site and documentation gaps weren'
     },
   });
 
+  const entityHarrington = await prisma.entity.create({
+    data: {
+      dossier_id: dossier.id,
+      name: "David Harrington",
+      type: "person",
+      description:
+        "Chief Executive Officer of Northgate Pharma. Named recipient of the June 2022 QA escalation memo and author of the March 2023 shareholder letter asserting an 'industry-leading quality culture.'",
+      aliases: ["Harrington", "D. Harrington"],
+      importance: 9,
+    },
+  });
+
   // ─── Mentions ─────────────────────────────────────────────────────────────────
 
   await prisma.mention.create({
@@ -412,6 +485,25 @@ A: If the company had a prior 483 at the same site and documentation gaps weren'
       highlight_id: hl3.id,
       context_snippet:
         "Northgate shares fell 18% on FDA warning letter disclosure.",
+    },
+  });
+
+  await prisma.mention.create({
+    data: {
+      entity_id: entityHarrington.id,
+      source_id: sourceShareholderLetter.id,
+      context_snippet:
+        "CEO David Harrington asserts 'industry-leading quality culture' in March 2023 shareholder letter.",
+    },
+  });
+
+  await prisma.mention.create({
+    data: {
+      entity_id: entityHarrington.id,
+      source_id: sourceMemo.id,
+      highlight_id: hl5.id,
+      context_snippet:
+        "CEO David Harrington named as recipient of June 2022 QA escalation memo.",
     },
   });
 
@@ -460,7 +552,7 @@ A: If the company had a prior 483 at the same site and documentation gaps weren'
     },
   });
 
-  await prisma.event.create({
+  const eventEscalation = await prisma.event.create({
     data: {
       dossier_id: dossier.id,
       title: "Internal QA Escalation — Chu Memo to Wei and Harrington",
@@ -474,10 +566,7 @@ A: If the company had a prior 483 at the same site and documentation gaps weren'
         create: [{ highlight_id: hl4.id }, { highlight_id: hl5.id }],
       },
       entities: {
-        create: [
-          { entity_id: entityWei.id },
-          { entity_id: entityChu.id },
-        ],
+        create: [{ entity_id: entityWei.id }, { entity_id: entityChu.id }],
       },
       tags: {
         create: [{ tag_id: tagManufacturing.id }],
@@ -485,12 +574,45 @@ A: If the company had a prior 483 at the same site and documentation gaps weren'
     },
   });
 
+  const eventShareholderLetter = await prisma.event.create({
+    data: {
+      dossier_id: dossier.id,
+      title: "CEO Asserts 'Industry-Leading Quality Culture' in Annual Letter",
+      description:
+        "David Harrington's 2023 annual shareholder letter characterizes the Raleigh facility as operating under an industry-leading quality culture — a claim issued 12 months after Chu's internal escalation.",
+      event_date: new Date("2023-03-22"),
+      precision: "day",
+      confidence: 4,
+      claim_id: claimKnowledge.id,
+      entities: {
+        create: [
+          { entity_id: entityHarrington.id },
+          { entity_id: entityNorthgate.id },
+        ],
+      },
+      tags: {
+        create: [{ tag_id: tagFinancial.id }],
+      },
+    },
+  });
+
   // Suppress unused variable warnings — variables are kept for clarity
   void eventInspection;
   void eventWarningLetter;
+  void eventEscalation;
+  void eventShareholderLetter;
   void claimExposure;
+  void sourceShareholderLetter;
 
   // ─── Brief ────────────────────────────────────────────────────────────────────
+  //
+  // Inline citation tokens ([[cite:highlight:<id>]] / [[cite:source:<id>]])
+  // are rendered as chips by the brief editor and resolve into footnotes at
+  // export time. Seeding them here means the demo brief is evidence-linked on
+  // first open rather than a plain-markdown placeholder.
+
+  const cH = (id: string) => `[[cite:highlight:${id}]]`;
+  const cS = (id: string) => `[[cite:source:${id}]]`;
 
   await prisma.brief.create({
     data: {
@@ -508,9 +630,9 @@ A: If the company had a prior 483 at the same site and documentation gaps weren'
 
 ## Summary of Findings
 
-Northgate Pharmaceutical Inc. received FDA Warning Letter WL-2024-0108 on January 8, 2024, citing three CGMP violations at its Raleigh, NC sterile fill facility. The most significant finding — 47 instances of audit log backdating over 18 months — is not an isolated compliance lapse but evidence of a systemic data integrity failure.
+Northgate Pharmaceutical Inc. received FDA Warning Letter WL-2024-0108 on January 8, 2024, citing three CGMP violations at its Raleigh, NC sterile fill facility ${cS(sourceFdaLetter.id)}. The most significant finding — 47 instances of audit log backdating over 18 months ${cH(hl1.id)} — is not an isolated compliance lapse but evidence of a systemic data integrity failure.
 
-Evidence suggests executive leadership was aware of data integrity risks at least 21 months before the FDA inspection, based on an internal QA escalation memo addressed directly to the CSO and CEO in June 2022.
+Evidence suggests executive leadership was aware of data integrity risks at least 21 months before the FDA inspection, based on an internal QA escalation memo addressed directly to the CSO and CEO in June 2022 ${cH(hl5.id)}.
 
 ---
 
@@ -518,19 +640,15 @@ Evidence suggests executive leadership was aware of data integrity risks at leas
 
 ### 1. Violations Were Systemic (High Confidence — 85%)
 
-The 47 backdating instances, sustained from March 2022 to September 2023, indicate organizational tolerance rather than isolated misconduct. Former FDA investigator Dr. Marcus Obi characterizes the pattern as a management failure. The company's prior Form 483 at the same facility in 2020 suggests the corrective action was inadequate.
-
-**Supporting evidence:** FDA Warning Letter WL-2024-0108; Reuters (2024-01-11); Obi interview (2024-02-15)
+The 47 backdating instances, sustained from March 2022 to September 2023, indicate organizational tolerance rather than isolated misconduct ${cH(hl6.id)}. Former FDA investigator Dr. Marcus Obi characterizes the pattern as a management failure. The company's prior Form 483 at the same facility in 2020 ${cH(hl3.id)} suggests the corrective action was inadequate.
 
 ### 2. Executive Knowledge Pre-Dated Inspection by 21+ Months (High Confidence — 90%)
 
-A June 2022 internal QA memo from VP Raymond Chu to CSO Dr. Sandra Wei and CEO David Harrington explicitly names data integrity concerns on Sterile Fill Line 3 and requests a CAPA. An earlier escalation to the site Quality Director was made in March 2022 with no corrective action issued.
-
-**Supporting evidence:** Internal QA escalation memo (2022-06-14)
+A June 2022 internal QA memo from VP Raymond Chu to CSO Dr. Sandra Wei and CEO David Harrington explicitly names data integrity concerns on Sterile Fill Line 3 and requests a CAPA ${cH(hl5.id)}. An earlier escalation to the site Quality Director was made in March 2022 with no corrective action issued ${cH(hl4.id)}.
 
 ### 3. Financial Exposure Likely Exceeds $40M Floor (Open — 65%)
 
-Analyst estimates range from $40M to $120M. Dr. Obi advises against anchoring to the lower estimate given the data integrity findings, the prior 483, and the likelihood of a consent decree. **Further research needed:** comparable consent decree financials.
+Analyst estimates range from $40M to $120M ${cS(sourceReuters.id)}. Dr. Obi advises against anchoring to the lower estimate given the data integrity findings, the prior 483, and the likelihood of a consent decree ${cH(hl7.id)}. **Further research needed:** comparable consent decree financials.
 
 ---
 
@@ -539,6 +657,7 @@ Analyst estimates range from $40M to $120M. Dr. Obi advises against anchoring to
 | Entity | Role |
 |---|---|
 | Northgate Pharmaceutical Inc. | Subject of investigation |
+| David Harrington | CEO; named recipient of June 2022 escalation memo; author of March 2023 shareholder letter |
 | Dr. Sandra Wei | CSO; named recipient of June 2022 escalation memo |
 | Raymond Chu | VP QA; author of escalation memo; key witness |
 
@@ -549,6 +668,7 @@ Analyst estimates range from $40M to $120M. Dr. Obi advises against anchoring to
 - Was the 30-day CAPA requested in the June 2022 memo ever issued?
 - What were the findings of the 2020 Form 483 and what corrective actions were documented?
 - Has Raymond Chu retained separate legal counsel?
+- How does the CEO's March 2023 "industry-leading quality culture" assertion interact with the contemporaneous internal escalation (potential securities disclosure issue)?
 
 ---
 
@@ -559,12 +679,12 @@ Analyst estimates range from $40M to $120M. Dr. Obi advises against anchoring to
   console.log(`Seed complete.`);
   console.log(`  User:      ${user.email}`);
   console.log(`  Dossier:   ${dossier.title}`);
-  console.log(`  Sources:   4`);
+  console.log(`  Sources:   5`);
   console.log(`  Highlights: 7`);
   console.log(`  Claims:    3`);
-  console.log(`  Entities:  3`);
-  console.log(`  Events:    3`);
-  console.log(`  Brief:     1 (draft)`);
+  console.log(`  Entities:  4`);
+  console.log(`  Events:    4`);
+  console.log(`  Brief:     1 (draft, evidence-linked)`);
 }
 
 main()
