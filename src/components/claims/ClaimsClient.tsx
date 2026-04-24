@@ -557,11 +557,11 @@ function ClaimCard({
               style={{
                 fontSize: "0.6875rem",
                 padding: "0.25rem 0.375rem",
-                color: "var(--color-ink-secondary)",
+                color: "var(--color-accent-alert)",
               }}
               aria-label="Delete claim"
             >
-              ✕
+              Delete
             </button>
           </div>
         </div>
