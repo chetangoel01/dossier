@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import { redirect } from "next/navigation";
 import { auth, signOut } from "@/auth";
 import { getDossiers } from "@/server/queries/dossiers";
@@ -59,16 +60,21 @@ export default async function DossiersPage() {
             </p>
           </div>
 
-          <form
-            action={async () => {
-              "use server";
-              await signOut({ redirectTo: "/" });
-            }}
-          >
-            <button type="submit" className="btn btn-ghost">
-              Sign out
-            </button>
-          </form>
+          <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
+            <Link href="/help" className="btn btn-ghost">
+              Help
+            </Link>
+            <form
+              action={async () => {
+                "use server";
+                await signOut({ redirectTo: "/" });
+              }}
+            >
+              <button type="submit" className="btn btn-ghost">
+                Sign out
+              </button>
+            </form>
+          </div>
         </div>
 
         <div style={{ marginBottom: "1.5rem" }}>

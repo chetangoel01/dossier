@@ -159,6 +159,15 @@ export function CommandBar({ open, onClose, dossier }: CommandBarProps) {
       run: () => runAndClose(() => router.push("/dossiers")),
     });
 
+    out.push({
+      id: "jump-help",
+      label: "Help",
+      hint: "Methodology and keyboard shortcuts",
+      group: "Navigate",
+      icon: "jump",
+      run: () => runAndClose(() => router.push("/help")),
+    });
+
     return out;
   }, [dossier, router, runAndClose]);
 
