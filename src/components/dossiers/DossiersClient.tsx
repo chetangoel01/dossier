@@ -31,6 +31,7 @@ export function DossiersClient({ dossiers }: DossiersClientProps) {
     <>
       <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: "1.25rem" }}>
         <button
+          type="button"
           className="btn btn-primary"
           onClick={() => setModalOpen(true)}
         >
