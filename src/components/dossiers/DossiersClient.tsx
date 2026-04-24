@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useState } from "react";
 import { NewDossierModal } from "./NewDossierModal";
+import { EmptyState } from "@/components/ui/EmptyState";
 import { StatusChip } from "@/components/ui/StatusChip";
 import type { DossierListItem } from "@/server/queries/dossiers";
 
@@ -38,17 +39,10 @@ export function DossiersClient({ dossiers }: DossiersClientProps) {
       </div>
 
       {dossiers.length === 0 ? (
-        <div className="panel" style={{ padding: "3rem 2rem", textAlign: "center" }}>
-          <p
-            style={{
-              fontFamily: "var(--font-mono)",
-              fontSize: "0.8125rem",
-              color: "var(--color-ink-secondary)",
-            }}
-          >
-            No dossiers yet. Create one to start building your research workspace.
-          </p>
-        </div>
+        <EmptyState
+          eyebrow="No dossiers yet."
+          message="Create one to start building your research workspace."
+        />
       ) : (
         <div
           className="panel"
