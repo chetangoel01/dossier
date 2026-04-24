@@ -2,6 +2,7 @@
 
 import { auth } from "@/auth";
 import { db } from "@/lib/db";
+import { LIMITS, overLimit } from "@/lib/validation";
 import { revalidatePath } from "next/cache";
 import type { HighlightLabel } from "@prisma/client";
 
@@ -30,6 +31,12 @@ export async function createHighlight(
 
   if (!input.sourceId) return { error: "Source ID is required." };
   if (!input.quoteText?.trim()) return { error: "Quote text is required." };
+  if (overLimit(input.quoteText, LIMITS.highlightQuote))
+    return { error: "Selected quote is too long to save." };
+  if (overLimit(input.annotation, LIMITS.highlightAnnotation))
+    return {
+      error: `Annotation must be under ${LIMITS.highlightAnnotation} characters.`,
+    };
   if (input.startOffset < 0) return { error: "Invalid start offset." };
   if (input.endOffset <= input.startOffset)
     return { error: "Invalid offset range." };

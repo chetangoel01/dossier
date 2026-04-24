@@ -2,7 +2,9 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { auth } from "@/auth";
+import { LIMITS } from "@/lib/validation";
 import { getDossier } from "@/server/queries/dossiers";
+import type { SearchResults as SearchResultsData } from "@/server/queries/search";
 import { searchWorkspace } from "@/server/queries/search";
 import { GlobalSearchBar } from "@/components/search/GlobalSearchBar";
 import { SearchResults } from "@/components/search/SearchResults";
@@ -25,7 +27,9 @@ export default async function SearchPage({ searchParams }: SearchPageProps) {
   }
 
   const { q, dossierId } = await searchParams;
-  const query = q?.trim() ?? "";
+  // Cap server-rendered queries at the same length as the API route so a
+  // pasted query that's too long fails gracefully instead of 500-ing.
+  const query = (q?.trim() ?? "").slice(0, LIMITS.searchQuery);
 
   // Validate the scoped dossier — if the id is unknown to this user, drop the
   // scope rather than silently returning empty results.
@@ -35,24 +39,32 @@ export default async function SearchPage({ searchParams }: SearchPageProps) {
   }
   const effectiveDossierId = scopedDossier?.id ?? null;
 
-  const results = query
-    ? await searchWorkspace(session.user.id, query, {
+  const emptyResults: SearchResultsData = {
+    query,
+    dossierId: effectiveDossierId,
+    types: [],
+    groups: {
+      dossier: [],
+      source: [],
+      highlight: [],
+      claim: [],
+      entity: [],
+      brief: [],
+    },
+    total: 0,
+  };
+
+  let results: SearchResultsData = emptyResults;
+  let searchError: string | null = null;
+  if (query) {
+    try {
+      results = await searchWorkspace(session.user.id, query, {
         dossierId: effectiveDossierId,
-      })
-    : {
-        query: "",
-        dossierId: effectiveDossierId,
-        types: [],
-        groups: {
-          dossier: [],
-          source: [],
-          highlight: [],
-          claim: [],
-          entity: [],
-          brief: [],
-        },
-        total: 0,
-      };
+      });
+    } catch {
+      searchError = "Search failed. Please try again.";
+    }
+  }
 
   return (
     <main
@@ -122,10 +134,27 @@ export default async function SearchPage({ searchParams }: SearchPageProps) {
           )}
         </header>
 
-        <SearchResults
-          results={results}
-          dossierTitle={scopedDossier?.title ?? null}
-        />
+        {searchError ? (
+          <div
+            role="alert"
+            style={{
+              padding: "0.75rem 1rem",
+              backgroundColor: "var(--color-error-bg)",
+              border: "var(--border-thin) solid var(--color-error-border)",
+              borderRadius: "var(--radius-sm)",
+              fontFamily: "var(--font-mono)",
+              fontSize: "0.8125rem",
+              color: "var(--color-accent-alert)",
+            }}
+          >
+            {searchError}
+          </div>
+        ) : (
+          <SearchResults
+            results={results}
+            dossierTitle={scopedDossier?.title ?? null}
+          />
+        )}
       </div>
     </main>
   );

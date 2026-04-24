@@ -2,6 +2,7 @@
 
 import { auth } from "@/auth";
 import { db } from "@/lib/db";
+import { LIMITS, overLimit } from "@/lib/validation";
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 
@@ -35,10 +36,17 @@ export async function createDossier(
 
   const title = (formData.get("title") as string)?.trim();
   if (!title) return "Title is required.";
+  if (title.length > LIMITS.dossierTitle)
+    return `Title must be under ${LIMITS.dossierTitle} characters.`;
 
   const summary = (formData.get("summary") as string)?.trim() || null;
+  if (overLimit(summary, LIMITS.dossierSummary))
+    return `Summary must be under ${LIMITS.dossierSummary} characters.`;
+
   const research_goal =
     (formData.get("research_goal") as string)?.trim() || null;
+  if (overLimit(research_goal, LIMITS.dossierResearchGoal))
+    return `Research goal must be under ${LIMITS.dossierResearchGoal} characters.`;
 
   let dossierId: string;
   try {
@@ -66,6 +74,8 @@ export async function renameDossier(id: string, title: string): Promise<void> {
 
   const trimmed = title.trim();
   if (!trimmed) throw new Error("Title is required");
+  if (trimmed.length > LIMITS.dossierTitle)
+    throw new Error(`Title must be under ${LIMITS.dossierTitle} characters.`);
 
   const dossier = await db.dossier.findFirst({
     where: { id, owner_id: session.user.id },

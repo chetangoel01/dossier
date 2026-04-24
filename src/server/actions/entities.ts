@@ -3,6 +3,7 @@
 import { auth } from "@/auth";
 import { buildContextSnippet } from "@/lib/entities";
 import { db } from "@/lib/db";
+import { LIMITS, overLimit } from "@/lib/validation";
 import {
   getEntityBacklink,
   type EntityBacklinkItem,
@@ -49,6 +50,25 @@ function isValidImportance(value: number | null | undefined): boolean {
   return value == null || (value >= 0 && value <= 100);
 }
 
+function validateEntityFieldLengths(
+  input: Partial<Pick<CreateEntityInput, "name" | "description" | "aliases">>,
+): string | null {
+  if (overLimit(input.name, LIMITS.entityName))
+    return `Name must be under ${LIMITS.entityName} characters.`;
+  if (overLimit(input.description, LIMITS.entityDescription))
+    return `Description must be under ${LIMITS.entityDescription} characters.`;
+  if (input.aliases) {
+    if (input.aliases.length > LIMITS.entityAliasCount)
+      return `No more than ${LIMITS.entityAliasCount} aliases are supported.`;
+    for (const alias of input.aliases) {
+      if (alias.length > LIMITS.entityAlias) {
+        return `Each alias must be under ${LIMITS.entityAlias} characters.`;
+      }
+    }
+  }
+  return null;
+}
+
 function getTargetCount(input: LinkEntityInput): number {
   return [input.sourceId, input.highlightId, input.claimId].filter(Boolean)
     .length;
@@ -91,6 +111,8 @@ export async function createEntity(
     };
   if (!isValidImportance(input.importance))
     return { error: "Importance must be between 0 and 100." };
+  const lengthError = validateEntityFieldLengths(input);
+  if (lengthError) return { error: lengthError };
 
   const dossier = await db.dossier.findFirst({
     where: { id: input.dossierId, owner_id: session.user.id },
@@ -133,6 +155,8 @@ export async function updateEntity(
     };
   if (!isValidImportance(input.importance))
     return { error: "Importance must be between 0 and 100." };
+  const lengthError = validateEntityFieldLengths(input);
+  if (lengthError) return { error: lengthError };
 
   const entity = await db.entity.findFirst({
     where: {

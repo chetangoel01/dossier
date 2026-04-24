@@ -2,6 +2,7 @@
 
 import { auth } from "@/auth";
 import { db } from "@/lib/db";
+import { LIMITS } from "@/lib/validation";
 
 interface SaveBriefInput {
   dossierId: string;
@@ -14,8 +15,8 @@ interface SaveBriefSuccess {
   updatedAt: string;
 }
 
-const MAX_TITLE_LENGTH = 200;
-const MAX_BODY_LENGTH = 200_000;
+const MAX_TITLE_LENGTH = LIMITS.briefTitle;
+const MAX_BODY_LENGTH = LIMITS.briefBody;
 
 export async function saveBrief(
   input: SaveBriefInput,

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/auth";
+import { LIMITS } from "@/lib/validation";
 import {
   SEARCH_OBJECT_TYPES,
   searchWorkspace,
@@ -19,6 +20,13 @@ export async function GET(req: NextRequest) {
   const dossierId = searchParams.get("dossierId")?.trim() || null;
   const typesParam = searchParams.get("types")?.trim();
 
+  if (query.length > LIMITS.searchQuery) {
+    return NextResponse.json(
+      { error: `Query must be under ${LIMITS.searchQuery} characters.` },
+      { status: 400 },
+    );
+  }
+
   const types = typesParam
     ? typesParam
         .split(",")
@@ -28,10 +36,16 @@ export async function GET(req: NextRequest) {
         )
     : undefined;
 
-  const results = await searchWorkspace(session.user.id, query, {
-    dossierId,
-    types,
-  });
-
-  return NextResponse.json(results);
+  try {
+    const results = await searchWorkspace(session.user.id, query, {
+      dossierId,
+      types,
+    });
+    return NextResponse.json(results);
+  } catch {
+    return NextResponse.json(
+      { error: "Search failed. Please try again." },
+      { status: 500 },
+    );
+  }
 }
