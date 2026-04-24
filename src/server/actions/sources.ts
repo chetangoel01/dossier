@@ -2,6 +2,7 @@
 
 import { auth } from "@/auth";
 import { db } from "@/lib/db";
+import { LIMITS, overLimit } from "@/lib/validation";
 import { revalidatePath } from "next/cache";
 import type { SourceType, SourceStatus } from "@prisma/client";
 
@@ -56,11 +57,32 @@ function validateTypeSpecificFields(
   return null;
 }
 
+function validateLengths(
+  input: Partial<Omit<SourceInput, "dossierId">>,
+): string | null {
+  if (overLimit(input.title, LIMITS.sourceTitle))
+    return `Title must be under ${LIMITS.sourceTitle} characters.`;
+  if (overLimit(input.url, LIMITS.sourceUrl))
+    return `URL must be under ${LIMITS.sourceUrl} characters.`;
+  if (overLimit(input.author, LIMITS.sourceAuthor))
+    return `Author must be under ${LIMITS.sourceAuthor} characters.`;
+  if (overLimit(input.publisher, LIMITS.sourcePublisher))
+    return `Publisher must be under ${LIMITS.sourcePublisher} characters.`;
+  if (overLimit(input.summary, LIMITS.sourceSummary))
+    return `Summary must be under ${LIMITS.sourceSummary} characters.`;
+  if (overLimit(input.rawText, LIMITS.sourceRawText))
+    return "Source content is too long.";
+  return null;
+}
+
 function validateSourceInput(
   input: SourceInput,
 ): string | null {
   if (!input.dossierId) return "Dossier ID is required.";
   if (!input.title?.trim()) return "Title is required.";
+
+  const lengthError = validateLengths(input);
+  if (lengthError) return lengthError;
 
   if (!VALID_SOURCE_TYPES.includes(input.type)) {
     return `Invalid source type. Must be one of: ${VALID_SOURCE_TYPES.join(", ")}.`;
@@ -201,6 +223,9 @@ export async function updateSource(
   if (input.title !== undefined && !input.title?.trim()) {
     return { error: "Title is required." };
   }
+
+  const lengthError = validateLengths(input);
+  if (lengthError) return { error: lengthError };
 
   if (input.credibilityRating != null) {
     if (

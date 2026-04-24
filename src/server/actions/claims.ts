@@ -2,6 +2,7 @@
 
 import { auth } from "@/auth";
 import { db } from "@/lib/db";
+import { LIMITS, overLimit } from "@/lib/validation";
 import { revalidatePath } from "next/cache";
 import type { ClaimStatus } from "@prisma/client";
 
@@ -29,6 +30,12 @@ export async function createClaim(
 
   if (!input.dossierId) return { error: "Dossier ID is required." };
   if (!input.statement?.trim()) return { error: "Statement is required." };
+  if (overLimit(input.statement, LIMITS.claimStatement))
+    return {
+      error: `Statement must be under ${LIMITS.claimStatement} characters.`,
+    };
+  if (overLimit(input.notes, LIMITS.claimNotes))
+    return { error: `Notes must be under ${LIMITS.claimNotes} characters.` };
   if (input.status && !VALID_STATUSES.includes(input.status))
     return { error: `Invalid status. Must be one of: ${VALID_STATUSES.join(", ")}.` };
   if (
@@ -101,6 +108,12 @@ export async function updateClaim(
   if (!input.id) return { error: "Claim ID is required." };
   if (input.statement !== undefined && !input.statement.trim())
     return { error: "Statement cannot be empty." };
+  if (overLimit(input.statement, LIMITS.claimStatement))
+    return {
+      error: `Statement must be under ${LIMITS.claimStatement} characters.`,
+    };
+  if (overLimit(input.notes, LIMITS.claimNotes))
+    return { error: `Notes must be under ${LIMITS.claimNotes} characters.` };
   if (input.status && !VALID_STATUSES.includes(input.status))
     return { error: `Invalid status. Must be one of: ${VALID_STATUSES.join(", ")}.` };
   if (

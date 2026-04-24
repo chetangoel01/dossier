@@ -2,6 +2,7 @@
 
 import { auth } from "@/auth";
 import { db } from "@/lib/db";
+import { LIMITS, overLimit } from "@/lib/validation";
 import { revalidatePath } from "next/cache";
 import type { EventPrecision } from "@prisma/client";
 
@@ -80,6 +81,12 @@ export async function createEvent(
 
   if (!input.dossierId) return { error: "Dossier ID is required." };
   if (!input.title?.trim()) return { error: "Event title is required." };
+  if (overLimit(input.title, LIMITS.eventTitle))
+    return { error: `Title must be under ${LIMITS.eventTitle} characters.` };
+  if (overLimit(input.description, LIMITS.eventDescription))
+    return {
+      error: `Description must be under ${LIMITS.eventDescription} characters.`,
+    };
   const precision: EventPrecision = input.precision ?? "unknown";
   if (!VALID_PRECISIONS.includes(precision))
     return {
@@ -165,6 +172,12 @@ export async function updateEvent(
   if (!input.id) return { error: "Event ID is required." };
   if (input.title !== undefined && !input.title.trim())
     return { error: "Event title cannot be empty." };
+  if (overLimit(input.title, LIMITS.eventTitle))
+    return { error: `Title must be under ${LIMITS.eventTitle} characters.` };
+  if (overLimit(input.description, LIMITS.eventDescription))
+    return {
+      error: `Description must be under ${LIMITS.eventDescription} characters.`,
+    };
   if (input.precision && !VALID_PRECISIONS.includes(input.precision))
     return {
       error: `Invalid precision. Must be one of: ${VALID_PRECISIONS.join(", ")}.`,

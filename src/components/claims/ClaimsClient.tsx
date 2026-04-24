@@ -1,6 +1,13 @@
 "use client";
 
-import { useState, useMemo, useTransition, useRef, useEffect } from "react";
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  useTransition,
+} from "react";
 import Link from "next/link";
 import { deleteClaim, updateClaim } from "@/server/actions/claims";
 import type { ClaimListItem } from "@/server/queries/claims";
@@ -81,42 +88,153 @@ function ConfidenceIndicator({ value }: { value: number | null }) {
 
 /* ─── Inline Edit Form ──────────────────────────────────────────── */
 
+type InlineSaveStatus = "saved" | "dirty" | "saving" | "error";
+
+const CLAIM_AUTOSAVE_DELAY_MS = 800;
+
+interface InlineEditPayload {
+  statement: string;
+  confidence: number | null;
+  notes: string | null;
+}
+
 function InlineEditForm({
   claim,
-  onSave,
-  onCancel,
+  onPersist,
+  onDone,
 }: {
   claim: ClaimListItem;
-  onSave: (data: {
-    statement: string;
-    confidence: number | null;
-    notes: string | null;
-  }) => void;
-  onCancel: () => void;
+  onPersist: (
+    id: string,
+    data: InlineEditPayload,
+  ) => Promise<{ error?: string }>;
+  onDone: () => void;
 }) {
   const [statement, setStatement] = useState(claim.statement);
   const [confidence, setConfidence] = useState(
     claim.confidence != null ? String(claim.confidence) : "",
   );
   const [notes, setNotes] = useState(claim.notes ?? "");
+  const [status, setStatus] = useState<InlineSaveStatus>("saved");
+  const [error, setError] = useState<string | null>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
+
+  const initialSnapshot = useRef<InlineEditPayload>({
+    statement: claim.statement,
+    confidence: claim.confidence ?? null,
+    notes: claim.notes ?? null,
+  });
+  // Track the last successfully persisted values so the autosave effect
+  // can ignore re-renders that carry no real user edit.
+  const lastPersistedRef = useRef<InlineEditPayload>({
+    statement: claim.statement,
+    confidence: claim.confidence ?? null,
+    notes: claim.notes ?? null,
+  });
 
   useEffect(() => {
     inputRef.current?.focus();
     inputRef.current?.select();
   }, []);
 
-  const handleSubmit = () => {
-    if (!statement.trim()) return;
-    const conf = confidence.trim()
-      ? Math.max(0, Math.min(100, parseInt(confidence, 10)))
-      : null;
-    onSave({
-      statement: statement.trim(),
-      confidence: Number.isNaN(conf) ? null : conf,
-      notes: notes.trim() || null,
-    });
+  const parseConfidence = (raw: string): number | null => {
+    if (!raw.trim()) return null;
+    const parsed = parseInt(raw, 10);
+    if (Number.isNaN(parsed)) return null;
+    return Math.max(0, Math.min(100, parsed));
   };
+
+  const persist = useCallback(
+    async (payload: InlineEditPayload) => {
+      setStatus("saving");
+      setError(null);
+      const result = await onPersist(claim.id, payload);
+      if (result?.error) {
+        setStatus("error");
+        setError(result.error);
+        return;
+      }
+      lastPersistedRef.current = payload;
+      setStatus("saved");
+    },
+    [claim.id, onPersist],
+  );
+
+  // Debounced autosave: only fires on a genuine drift from the last save.
+  useEffect(() => {
+    const trimmedStatement = statement.trim();
+    const parsedConfidence = parseConfidence(confidence);
+    const trimmedNotes = notes.trim() || null;
+
+    const snapshot = lastPersistedRef.current;
+    if (
+      trimmedStatement === snapshot.statement &&
+      parsedConfidence === snapshot.confidence &&
+      trimmedNotes === snapshot.notes
+    ) {
+      return;
+    }
+
+    if (!trimmedStatement) {
+      setStatus("error");
+      setError("Statement is required.");
+      return;
+    }
+
+    setStatus("dirty");
+    setError(null);
+    const handle = window.setTimeout(() => {
+      persist({
+        statement: trimmedStatement,
+        confidence: parsedConfidence,
+        notes: trimmedNotes,
+      });
+    }, CLAIM_AUTOSAVE_DELAY_MS);
+
+    return () => window.clearTimeout(handle);
+  }, [statement, confidence, notes, persist]);
+
+  // Warn before leaving the page if the user has unsaved edits.
+  useEffect(() => {
+    const handler = (event: BeforeUnloadEvent) => {
+      if (status === "saved") return;
+      event.preventDefault();
+      event.returnValue = "";
+    };
+    window.addEventListener("beforeunload", handler);
+    return () => window.removeEventListener("beforeunload", handler);
+  }, [status]);
+
+  const handleDone = () => {
+    if (status !== "saved") {
+      const initial = initialSnapshot.current;
+      const warning =
+        status === "error"
+          ? "Discard unsaved changes? The last save failed."
+          : "Changes are still saving. Close anyway?";
+      if (!window.confirm(warning)) return;
+      // Reset to the last persisted snapshot so an incoming parent refresh
+      // doesn't show stale edits.
+      setStatement(initial.statement);
+      setConfidence(initial.confidence != null ? String(initial.confidence) : "");
+      setNotes(initial.notes ?? "");
+    }
+    onDone();
+  };
+
+  const statusLabel = (() => {
+    switch (status) {
+      case "saving":
+        return "Saving…";
+      case "dirty":
+        return "Unsaved…";
+      case "error":
+        return error ?? "Save failed";
+      case "saved":
+      default:
+        return "Saved";
+    }
+  })();
 
   return (
     <div className="flex flex-col gap-2">
@@ -126,11 +244,11 @@ function InlineEditForm({
         value={statement}
         onChange={(e) => setStatement(e.target.value)}
         onKeyDown={(e) => {
-          if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) handleSubmit();
-          if (e.key === "Escape") onCancel();
+          if (e.key === "Escape") handleDone();
         }}
         rows={2}
         style={{ minHeight: "2.5rem", fontSize: "0.9375rem" }}
+        aria-invalid={status === "error" || undefined}
       />
       <div className="flex items-center gap-3">
         <label
@@ -168,28 +286,25 @@ function InlineEditForm({
         <button
           type="button"
           className="btn btn-primary"
-          onClick={handleSubmit}
+          onClick={handleDone}
           style={{ fontSize: "0.75rem", padding: "0.25rem 0.625rem" }}
+          disabled={status === "saving" || status === "dirty"}
         >
-          Save
-        </button>
-        <button
-          type="button"
-          className="btn btn-ghost"
-          onClick={onCancel}
-          style={{ fontSize: "0.75rem", padding: "0.25rem 0.625rem" }}
-        >
-          Cancel
+          Done
         </button>
         <span
-          className="ml-auto"
+          role="status"
+          aria-live="polite"
           style={{
             fontFamily: "var(--font-mono)",
             fontSize: "0.625rem",
-            color: "var(--color-ink-secondary)",
+            color:
+              status === "error"
+                ? "var(--color-accent-alert)"
+                : "var(--color-ink-secondary)",
           }}
         >
-          ⌘+Enter to save
+          {statusLabel}
         </span>
       </div>
     </div>
@@ -207,8 +322,8 @@ function ClaimCard({
   onDelete,
   onLinkEntity,
   editingId,
-  onSaveEdit,
-  onCancelEdit,
+  onPersistEdit,
+  onFinishEdit,
 }: {
   claim: ClaimListItem;
   dossierId: string;
@@ -218,15 +333,11 @@ function ClaimCard({
   onDelete: (id: string) => void;
   onLinkEntity: (claim: ClaimListItem) => void;
   editingId: string | null;
-  onSaveEdit: (
+  onPersistEdit: (
     id: string,
-    data: {
-      statement: string;
-      confidence: number | null;
-      notes: string | null;
-    },
-  ) => void;
-  onCancelEdit: () => void;
+    data: InlineEditPayload,
+  ) => Promise<{ error?: string }>;
+  onFinishEdit: () => void;
 }) {
   const isEditing = editingId === claim.id;
   const linkedEntities = claim.entities.map((claimEntity) => claimEntity.entity);
@@ -242,8 +353,8 @@ function ClaimCard({
       {isEditing ? (
         <InlineEditForm
           claim={claim}
-          onSave={(data) => onSaveEdit(claim.id, data)}
-          onCancel={onCancelEdit}
+          onPersist={onPersistEdit}
+          onDone={onFinishEdit}
         />
       ) : (
         <div className="flex items-start justify-between gap-3">
@@ -469,8 +580,8 @@ function BoardView({
   onDelete,
   onLinkEntity,
   editingId,
-  onSaveEdit,
-  onCancelEdit,
+  onPersistEdit,
+  onFinishEdit,
 }: {
   claims: ClaimListItem[];
   dossierId: string;
@@ -479,15 +590,11 @@ function BoardView({
   onDelete: (id: string) => void;
   onLinkEntity: (claim: ClaimListItem) => void;
   editingId: string | null;
-  onSaveEdit: (
+  onPersistEdit: (
     id: string,
-    data: {
-      statement: string;
-      confidence: number | null;
-      notes: string | null;
-    },
-  ) => void;
-  onCancelEdit: () => void;
+    data: InlineEditPayload,
+  ) => Promise<{ error?: string }>;
+  onFinishEdit: () => void;
 }) {
   const columns = useMemo(() => {
     const grouped: Record<ClaimStatus, ClaimListItem[]> = {
@@ -566,8 +673,8 @@ function BoardView({
                   onDelete={onDelete}
                   onLinkEntity={onLinkEntity}
                   editingId={editingId}
-                  onSaveEdit={onSaveEdit}
-                  onCancelEdit={onCancelEdit}
+                  onPersistEdit={onPersistEdit}
+                  onFinishEdit={onFinishEdit}
                 />
               ))
             )}
@@ -587,6 +694,14 @@ export function ClaimsClient({ dossierId, claims, entities }: Props) {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [linkTargetClaimId, setLinkTargetClaimId] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
+  const [actionError, setActionError] = useState<string | null>(null);
+
+  const flashError = useCallback((message: string) => {
+    setActionError(message);
+    window.setTimeout(() => {
+      setActionError((current) => (current === message ? null : current));
+    }, 4000);
+  }, []);
 
   const filtered = useMemo(() => {
     if (filterStatus === "all") return claims;
@@ -618,7 +733,11 @@ export function ClaimsClient({ dossierId, claims, entities }: Props) {
 
   const handleStatusChange = (claimId: string, newStatus: ClaimStatus) => {
     startTransition(async () => {
-      await updateClaim({ id: claimId, status: newStatus });
+      const result = await updateClaim({ id: claimId, status: newStatus });
+      if ("error" in result) {
+        flashError(result.error);
+        return;
+      }
       router.refresh();
     });
   };
@@ -626,30 +745,40 @@ export function ClaimsClient({ dossierId, claims, entities }: Props) {
   const handleDelete = (claimId: string) => {
     if (!window.confirm("Delete this claim? This cannot be undone.")) return;
     startTransition(async () => {
-      await deleteClaim(claimId);
+      const result = await deleteClaim(claimId);
+      if ("error" in result) {
+        flashError(result.error);
+        return;
+      }
       router.refresh();
     });
   };
 
-  const handleSaveEdit = (
-    claimId: string,
-    data: {
-      statement: string;
-      confidence: number | null;
-      notes: string | null;
-    },
-  ) => {
-    setEditingId(null);
-    startTransition(async () => {
-      await updateClaim({
+  // Called by the inline editor on every debounced autosave. Returning
+  // `{ error }` lets the editor surface the message inline while the
+  // list-level banner keeps track of the last failure too.
+  const handlePersistEdit = useCallback(
+    async (
+      claimId: string,
+      data: InlineEditPayload,
+    ): Promise<{ error?: string }> => {
+      const result = await updateClaim({
         id: claimId,
         statement: data.statement,
         confidence: data.confidence,
         notes: data.notes,
       });
+      if ("error" in result) {
+        flashError(result.error);
+        return { error: result.error };
+      }
       router.refresh();
-    });
-  };
+      return {};
+    },
+    [flashError, router],
+  );
+
+  const handleFinishEdit = useCallback(() => setEditingId(null), []);
 
   return (
     <div
@@ -661,6 +790,23 @@ export function ClaimsClient({ dossierId, claims, entities }: Props) {
         transition: "opacity var(--duration-fast) ease",
       }}
     >
+      {actionError && (
+        <div
+          role="alert"
+          style={{
+            padding: "0.75rem 1rem",
+            marginBottom: "1rem",
+            backgroundColor: "var(--color-error-bg)",
+            border: "var(--border-thin) solid var(--color-error-border)",
+            borderRadius: "var(--radius-sm)",
+            fontFamily: "var(--font-mono)",
+            fontSize: "0.8125rem",
+            color: "var(--color-accent-alert)",
+          }}
+        >
+          {actionError}
+        </div>
+      )}
       {/* Header */}
       <div className="flex items-center justify-between mb-4">
         <div>
@@ -775,8 +921,8 @@ export function ClaimsClient({ dossierId, claims, entities }: Props) {
           onDelete={handleDelete}
           onLinkEntity={(claim) => setLinkTargetClaimId(claim.id)}
           editingId={editingId}
-          onSaveEdit={handleSaveEdit}
-          onCancelEdit={() => setEditingId(null)}
+          onPersistEdit={handlePersistEdit}
+          onFinishEdit={handleFinishEdit}
         />
       ) : filtered.length === 0 ? (
         <EmptyState
@@ -796,8 +942,8 @@ export function ClaimsClient({ dossierId, claims, entities }: Props) {
               onDelete={handleDelete}
               onLinkEntity={(claim) => setLinkTargetClaimId(claim.id)}
               editingId={editingId}
-              onSaveEdit={handleSaveEdit}
-              onCancelEdit={() => setEditingId(null)}
+              onPersistEdit={handlePersistEdit}
+              onFinishEdit={handleFinishEdit}
             />
           ))}
         </div>
