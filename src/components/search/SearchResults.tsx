@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { EmptyState } from "@/components/ui/EmptyState";
 import type {
   SearchObjectType,
   SearchResultBase,
@@ -32,6 +33,7 @@ export function SearchResults({ results, dossierTitle }: SearchResultsProps) {
   if (!results.query) {
     return (
       <EmptyState
+        eyebrow="Search the workspace."
         message="Enter a term to search across dossiers, sources, highlights, claims, entities, and briefs."
       />
     );
@@ -40,10 +42,11 @@ export function SearchResults({ results, dossierTitle }: SearchResultsProps) {
   if (results.total === 0) {
     return (
       <EmptyState
+        eyebrow="No matches."
         message={
           dossierTitle
-            ? `No matches for “${results.query}” in ${dossierTitle}.`
-            : `No matches for “${results.query}”.`
+            ? `Nothing matched “${results.query}” in ${dossierTitle}.`
+            : `Nothing matched “${results.query}”.`
         }
       />
     );
@@ -167,25 +170,6 @@ function ResultGroup({
         ))}
       </div>
     </section>
-  );
-}
-
-function EmptyState({ message }: { message: string }) {
-  return (
-    <div
-      className="panel"
-      style={{ padding: "2.5rem 2rem", textAlign: "center" }}
-    >
-      <p
-        style={{
-          fontFamily: "var(--font-mono)",
-          fontSize: "0.8125rem",
-          color: "var(--color-ink-secondary)",
-        }}
-      >
-        {message}
-      </p>
-    </div>
   );
 }
 

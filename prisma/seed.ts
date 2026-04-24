@@ -517,7 +517,7 @@ We are confident in the compliance posture of our manufacturing network as we en
         "FDA investigators conducted an unannounced CGMP inspection of Northgate's Raleigh sterile fill facility, spanning 13 business days.",
       event_date: new Date("2023-10-16"),
       precision: "day",
-      confidence: 5,
+      confidence: 95,
       claim_id: claimSystemic.id,
       highlights: { create: [{ highlight_id: hl2.id }] },
       entities: {
@@ -537,7 +537,7 @@ We are confident in the compliance posture of our manufacturing network as we en
         "FDA formally issued warning letter citing three CGMP violations, including 47 instances of audit log backdating.",
       event_date: new Date("2024-01-08"),
       precision: "day",
-      confidence: 5,
+      confidence: 98,
       claim_id: claimSystemic.id,
       highlights: { create: [{ highlight_id: hl1.id }] },
       entities: {
@@ -560,7 +560,7 @@ We are confident in the compliance posture of our manufacturing network as we en
         "VP of QA Raymond Chu formally escalated data integrity concerns in writing to CSO Dr. Sandra Wei and CEO David Harrington, requesting a CAPA within 30 days.",
       event_date: new Date("2022-06-14"),
       precision: "day",
-      confidence: 5,
+      confidence: 88,
       claim_id: claimKnowledge.id,
       highlights: {
         create: [{ highlight_id: hl4.id }, { highlight_id: hl5.id }],
@@ -582,7 +582,7 @@ We are confident in the compliance posture of our manufacturing network as we en
         "David Harrington's 2023 annual shareholder letter characterizes the Raleigh facility as operating under an industry-leading quality culture — a claim issued 12 months after Chu's internal escalation.",
       event_date: new Date("2023-03-22"),
       precision: "day",
-      confidence: 4,
+      confidence: 75,
       claim_id: claimKnowledge.id,
       entities: {
         create: [

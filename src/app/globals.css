@@ -32,6 +32,26 @@
   --color-error-bg: #f0dede;
   --color-error-border: #d4a8a8;
 
+  /* Interactive hover shades — slightly deeper than the base tokens */
+  --color-accent-ink-hover: #1a5c8a;
+  --color-border-hover: #c0b8a8;
+
+  /* Chip variants — paired bg/border/fg per semantic status */
+  --color-chip-citation-border: #b8d3ea;
+  --color-chip-citation-fg: var(--color-accent-ink);
+
+  --color-chip-success-bg: #d8f0e6;
+  --color-chip-success-border: #9dd4be;
+  --color-chip-success-fg: var(--color-accent-success);
+
+  --color-chip-alert-bg: #f0dede;
+  --color-chip-alert-border: #d4a8a8;
+  --color-chip-alert-fg: var(--color-accent-alert);
+
+  --color-chip-warning-bg: #f5ead8;
+  --color-chip-warning-border: #d4bd8c;
+  --color-chip-warning-fg: var(--color-accent-warning);
+
   /* Border radius */
   --radius-xs: 2px;
   --radius-sm: 4px;
@@ -178,20 +198,19 @@ dialog::backdrop {
 }
 
 .btn-primary:hover {
-  background-color: #1a5c8a;
-  border-color: #1a5c8a;
+  background-color: var(--color-accent-ink-hover);
+  border-color: var(--color-accent-ink-hover);
 }
 
 .btn-secondary {
-  background-color: transparent;
+  background-color: var(--color-bg-panel);
   color: var(--color-ink-primary);
   border-color: var(--color-border);
-  background-color: var(--color-bg-panel);
 }
 
 .btn-secondary:hover {
   background-color: var(--color-bg-selected);
-  border-color: #c0b8a8;
+  border-color: var(--color-border-hover);
 }
 
 .btn-ghost {
@@ -305,26 +324,26 @@ textarea.input {
 
 .chip-citation {
   background-color: var(--color-chip-citation);
-  border-color: #b8d3ea;
-  color: var(--color-accent-ink);
+  border-color: var(--color-chip-citation-border);
+  color: var(--color-chip-citation-fg);
 }
 
 .chip-success {
-  background-color: #d8f0e6;
-  border-color: #9dd4be;
-  color: var(--color-accent-success);
+  background-color: var(--color-chip-success-bg);
+  border-color: var(--color-chip-success-border);
+  color: var(--color-chip-success-fg);
 }
 
 .chip-alert {
-  background-color: #f0dede;
-  border-color: #d4a8a8;
-  color: var(--color-accent-alert);
+  background-color: var(--color-chip-alert-bg);
+  border-color: var(--color-chip-alert-border);
+  color: var(--color-chip-alert-fg);
 }
 
 .chip-warning {
-  background-color: #f5ead8;
-  border-color: #d4bd8c;
-  color: var(--color-accent-warning);
+  background-color: var(--color-chip-warning-bg);
+  border-color: var(--color-chip-warning-border);
+  color: var(--color-chip-warning-fg);
 }
 
 /* ------ Tables ------ */

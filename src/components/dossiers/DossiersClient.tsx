@@ -4,17 +4,13 @@ import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useState } from "react";
 import { NewDossierModal } from "./NewDossierModal";
+import { EmptyState } from "@/components/ui/EmptyState";
+import { StatusChip } from "@/components/ui/StatusChip";
 import type { DossierListItem } from "@/server/queries/dossiers";
 
 interface DossiersClientProps {
   dossiers: DossierListItem[];
 }
-
-const STATUS_LABEL: Record<string, string> = {
-  active: "Active",
-  archived: "Archived",
-  on_hold: "On hold",
-};
 
 export function DossiersClient({ dossiers }: DossiersClientProps) {
   const [modalOpen, setModalOpen] = useState(false);
@@ -35,6 +31,7 @@ export function DossiersClient({ dossiers }: DossiersClientProps) {
     <>
       <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: "1.25rem" }}>
         <button
+          type="button"
           className="btn btn-primary"
           onClick={() => setModalOpen(true)}
         >
@@ -43,17 +40,10 @@ export function DossiersClient({ dossiers }: DossiersClientProps) {
       </div>
 
       {dossiers.length === 0 ? (
-        <div className="panel" style={{ padding: "3rem 2rem", textAlign: "center" }}>
-          <p
-            style={{
-              fontFamily: "var(--font-mono)",
-              fontSize: "0.8125rem",
-              color: "var(--color-ink-secondary)",
-            }}
-          >
-            No dossiers yet. Create one to start building your research workspace.
-          </p>
-        </div>
+        <EmptyState
+          eyebrow="No dossiers yet."
+          message="Create one to start building your research workspace."
+        />
       ) : (
         <div
           className="panel"
@@ -127,27 +117,7 @@ export function DossiersClient({ dossiers }: DossiersClientProps) {
                   {dossier._count.sources} source
                   {dossier._count.sources !== 1 ? "s" : ""}
                 </span>
-                <span
-                  style={{
-                    fontFamily: "var(--font-mono)",
-                    fontSize: "0.6875rem",
-                    color:
-                      dossier.status === "active"
-                        ? "var(--color-accent-success)"
-                        : "var(--color-ink-secondary)",
-                    backgroundColor:
-                      dossier.status === "active"
-                        ? "rgba(45, 106, 79, 0.1)"
-                        : "var(--color-bg-selected)",
-                    padding: "0.125rem 0.5rem",
-                    borderRadius: "var(--radius-xs)",
-                    border: "var(--border-hairline) solid var(--color-border)",
-                    textTransform: "uppercase",
-                    letterSpacing: "0.06em",
-                  }}
-                >
-                  {STATUS_LABEL[dossier.status] ?? dossier.status}
-                </span>
+                <StatusChip status={dossier.status} />
               </div>
             </Link>
           ))}
