@@ -11,6 +11,7 @@ import { EntityChip } from "./EntityChip";
 import { EntityEditorModal } from "./EntityEditorModal";
 import { EntityDetailDrawer } from "./EntityDetailDrawer";
 import { formatEntityAliases } from "@/lib/entities";
+import { EmptyState } from "@/components/ui/EmptyState";
 
 interface EntitiesClientProps {
   dossierId: string;
@@ -105,37 +106,19 @@ export function EntitiesClient({
         </div>
 
         {entities.length === 0 ? (
-          <div className="panel py-12 px-8 text-center">
-            <p
-              className="mb-2 max-w-none"
-              style={{
-                fontFamily: "var(--font-mono)",
-                fontSize: "0.8125rem",
-                color: "var(--color-ink-secondary)",
-              }}
-            >
-              No entities identified.
-            </p>
-            <p
-              style={{
-                fontFamily: "var(--font-sans)",
-                fontSize: "0.875rem",
-                color: "var(--color-ink-secondary)",
-                fontStyle: "italic",
-                marginBottom: "1rem",
-              }}
-            >
-              Promote the people, companies, products, locations, institutions,
-              and topics that recur across your research.
-            </p>
-            <button
-              type="button"
-              className="btn btn-secondary"
-              onClick={() => setEditorOpen(true)}
-            >
-              Create First Entity
-            </button>
-          </div>
+          <EmptyState
+            eyebrow="No entities identified."
+            message="Promote the people, companies, products, locations, institutions, and topics that recur across your research."
+            action={
+              <button
+                type="button"
+                className="btn btn-secondary"
+                onClick={() => setEditorOpen(true)}
+              >
+                Create first entity
+              </button>
+            }
+          />
         ) : (
           <div
             style={{

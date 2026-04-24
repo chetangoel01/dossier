@@ -5,6 +5,7 @@ import { auth } from "@/auth";
 import { getEvents, type EventListItem } from "@/server/queries/events";
 import { EntityChip } from "@/components/entities/EntityChip";
 import { formatEventDate } from "@/lib/events";
+import { EmptyState } from "@/components/ui/EmptyState";
 
 export const metadata: Metadata = {
   title: "Timeline — Dossier",
@@ -68,29 +69,10 @@ export default async function TimelinePage({ params }: TimelinePageProps) {
       </div>
 
       {events.length === 0 ? (
-        <div className="panel py-12 px-8 text-center">
-          <p
-            className="mb-2 max-w-none"
-            style={{
-              fontFamily: "var(--font-mono)",
-              fontSize: "0.8125rem",
-              color: "var(--color-ink-secondary)",
-            }}
-          >
-            No events on record.
-          </p>
-          <p
-            style={{
-              fontFamily: "var(--font-sans)",
-              fontSize: "0.875rem",
-              color: "var(--color-ink-secondary)",
-              fontStyle: "italic",
-            }}
-          >
-            Dated events drawn from sources and claims will be arranged
-            chronologically here.
-          </p>
-        </div>
+        <EmptyState
+          eyebrow="No events on record."
+          message="Dated events drawn from sources and claims will be arranged chronologically here."
+        />
       ) : (
         <>
           {dated.length > 0 && (

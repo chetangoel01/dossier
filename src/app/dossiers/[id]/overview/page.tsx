@@ -10,7 +10,7 @@ export default function OverviewPage() {
       className="w-full max-w-[960px] mx-auto py-8"
       style={{ paddingInline: "var(--space-gutter)" }}
     >
-      <div className="grid grid-cols-2 gap-4 mb-4">
+      <div className="grid grid-cols-2 gap-4 mb-4 anim-stagger">
         {/* Summary panel */}
         <div className="panel col-span-full p-6">
           <p

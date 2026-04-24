@@ -401,3 +401,104 @@ textarea.input {
 .source-status-menu-item[data-highlighted] {
   background-color: var(--color-bg-selected);
 }
+
+/* ============================================================
+   MOTION — soft, restrained transitions only
+   ============================================================ */
+
+@keyframes tab-fade-in {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes stagger-reveal {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes drawer-slide-in {
+  from {
+    opacity: 0;
+    transform: translateX(12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes overlay-fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes timeline-focus {
+  0% { background-color: transparent; }
+  25% { background-color: var(--color-highlight-wash); }
+  100% { background-color: transparent; }
+}
+
+@keyframes subtle-pulse {
+  0%, 100% { opacity: 0.55; }
+  50% { opacity: 0.85; }
+}
+
+.anim-tab-enter {
+  animation: tab-fade-in var(--duration-slow) ease-out both;
+}
+
+.anim-stagger > * {
+  opacity: 0;
+  animation: stagger-reveal var(--duration-slow) ease-out forwards;
+}
+
+.anim-stagger > *:nth-child(1) { animation-delay: 0ms; }
+.anim-stagger > *:nth-child(2) { animation-delay: 50ms; }
+.anim-stagger > *:nth-child(3) { animation-delay: 100ms; }
+.anim-stagger > *:nth-child(4) { animation-delay: 150ms; }
+.anim-stagger > *:nth-child(5) { animation-delay: 200ms; }
+.anim-stagger > *:nth-child(6) { animation-delay: 240ms; }
+.anim-stagger > *:nth-child(n+7) { animation-delay: 240ms; }
+
+.anim-drawer-enter {
+  animation: drawer-slide-in var(--duration-slow) ease-out both;
+}
+
+.anim-overlay-enter {
+  animation: overlay-fade-in var(--duration-base) ease-out both;
+}
+
+.anim-timeline-focus {
+  animation: timeline-focus 1.2s ease-out 1;
+}
+
+.skeleton {
+  background-color: var(--color-bg-selected);
+  border-radius: var(--radius-sm);
+  animation: subtle-pulse 1.6s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .anim-tab-enter,
+  .anim-stagger > *,
+  .anim-drawer-enter,
+  .anim-overlay-enter,
+  .anim-timeline-focus,
+  .skeleton {
+    animation: none !important;
+    opacity: 1 !important;
+    transform: none !important;
+  }
+}
