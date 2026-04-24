@@ -12,6 +12,7 @@ import {
   EntityLinkModal,
   type LinkTarget,
 } from "@/components/entities/EntityLinkModal";
+import { EmptyState } from "@/components/ui/EmptyState";
 
 interface Props {
   dossierId: string;
@@ -761,29 +762,10 @@ export function ClaimsClient({ dossierId, claims, entities }: Props) {
 
       {/* Content */}
       {claims.length === 0 ? (
-        <div className="panel py-12 px-8 text-center">
-          <p
-            className="mb-2 max-w-none"
-            style={{
-              fontFamily: "var(--font-mono)",
-              fontSize: "0.8125rem",
-              color: "var(--color-ink-secondary)",
-            }}
-          >
-            No claims recorded.
-          </p>
-          <p
-            style={{
-              fontFamily: "var(--font-sans)",
-              fontSize: "0.875rem",
-              color: "var(--color-ink-secondary)",
-              fontStyle: "italic",
-            }}
-          >
-            Claims are defensible assertions linked to source evidence. Create
-            them from highlights in the source reader.
-          </p>
-        </div>
+        <EmptyState
+          eyebrow="No claims recorded."
+          message="Claims are defensible assertions linked to source evidence. Draft them from highlights in the source reader."
+        />
       ) : viewMode === "board" ? (
         <BoardView
           claims={claims}
@@ -797,18 +779,11 @@ export function ClaimsClient({ dossierId, claims, entities }: Props) {
           onCancelEdit={() => setEditingId(null)}
         />
       ) : filtered.length === 0 ? (
-        <div className="panel p-8 text-center">
-          <p
-            className="max-w-none"
-            style={{
-              fontFamily: "var(--font-mono)",
-              fontSize: "0.8125rem",
-              color: "var(--color-ink-secondary)",
-            }}
-          >
-            No claims match the current filter.
-          </p>
-        </div>
+        <EmptyState
+          eyebrow="No claims match this filter."
+          message="Clear the filter above to see every claim in this dossier."
+          compact
+        />
       ) : (
         <div className="flex flex-col gap-2">
           {filtered.map((claim) => (

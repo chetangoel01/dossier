@@ -9,6 +9,7 @@ import { SourceStatusMenu } from "./SourceStatusMenu";
 import { updateSourceStatus } from "@/server/actions/sources";
 import type { SourceListItem } from "@/server/queries/sources";
 import type { SourceType, SourceStatus } from "@prisma/client";
+import { EmptyState } from "@/components/ui/EmptyState";
 
 interface Props {
   dossierId: string;
@@ -217,56 +218,25 @@ export function SourcesClient({ dossierId, sources }: Props) {
 
       {/* Content */}
       {sources.length === 0 ? (
-        <div
-          className="panel"
-          style={{
-            padding: "3rem 2rem",
-            textAlign: "center",
-          }}
-        >
-          <p
-            style={{
-              fontFamily: "var(--font-mono)",
-              fontSize: "0.8125rem",
-              color: "var(--color-ink-secondary)",
-              marginBottom: "0.5rem",
-              maxWidth: "none",
-            }}
-          >
-            No sources yet.
-          </p>
-          <p
-            style={{
-              fontFamily: "var(--font-sans)",
-              fontSize: "0.875rem",
-              color: "var(--color-ink-secondary)",
-              fontStyle: "italic",
-              maxWidth: "none",
-            }}
-          >
-            Add a URL, paste text, or write a note to begin building your
-            evidence base.
-          </p>
-        </div>
+        <EmptyState
+          eyebrow="No sources yet."
+          message="Capture a URL, paste text, or write a note to begin building your evidence base."
+          action={
+            <button
+              type="button"
+              className="btn btn-secondary"
+              onClick={() => setModalOpen(true)}
+            >
+              Capture first source
+            </button>
+          }
+        />
       ) : filtered.length === 0 ? (
-        <div
-          className="panel"
-          style={{
-            padding: "2rem",
-            textAlign: "center",
-          }}
-        >
-          <p
-            style={{
-              fontFamily: "var(--font-mono)",
-              fontSize: "0.8125rem",
-              color: "var(--color-ink-secondary)",
-              maxWidth: "none",
-            }}
-          >
-            No sources match the current filters.
-          </p>
-        </div>
+        <EmptyState
+          eyebrow="No sources match these filters."
+          message="Adjust the type or status filters above to see more."
+          compact
+        />
       ) : (
         <div
           className="panel"

@@ -152,6 +152,7 @@ export function EntityDetailDrawer({
       <div
         aria-hidden="true"
         onClick={onClose}
+        className="anim-overlay-enter"
         style={{
           position: "fixed",
           inset: 0,
@@ -168,6 +169,7 @@ export function EntityDetailDrawer({
         aria-labelledby={titleId}
         aria-describedby={descriptionId}
         tabIndex={-1}
+        className="anim-drawer-enter"
         style={{
           position: "fixed",
           top: 0,

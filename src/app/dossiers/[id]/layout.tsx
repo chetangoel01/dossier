@@ -3,6 +3,7 @@ import Link from "next/link";
 import { auth } from "@/auth";
 import { getDossier } from "@/server/queries/dossiers";
 import { WorkspaceTabBar } from "@/components/dossiers/WorkspaceTabBar";
+import { WorkspacePaneTransition } from "@/components/dossiers/WorkspacePaneTransition";
 import { GlobalSearchBar } from "@/components/search/GlobalSearchBar";
 import { DossierWorkspaceShortcuts } from "@/components/command/DossierWorkspaceShortcuts";
 
@@ -99,7 +100,7 @@ export default async function DossierLayout({
       <div className="flex flex-1 min-h-0">
         {/* Main content region */}
         <main className="flex flex-col flex-1 min-h-0">
-          {children}
+          <WorkspacePaneTransition>{children}</WorkspacePaneTransition>
         </main>
 
         {/* Right inspector slot — collapsed by default, populated per-tab */}
