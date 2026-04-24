@@ -6,6 +6,7 @@ import { WorkspaceTabBar } from "@/components/dossiers/WorkspaceTabBar";
 import { WorkspacePaneTransition } from "@/components/dossiers/WorkspacePaneTransition";
 import { GlobalSearchBar } from "@/components/search/GlobalSearchBar";
 import { DossierWorkspaceShortcuts } from "@/components/command/DossierWorkspaceShortcuts";
+import { StatusChip } from "@/components/ui/StatusChip";
 
 interface DossierLayoutProps {
   children: React.ReactNode;
@@ -81,10 +82,8 @@ export default async function DossierLayout({
             {dossier.title}
           </h1>
 
-          <span
-            className="chip shrink-0"
-          >
-            {dossier.status}
+          <span className="shrink-0">
+            <StatusChip status={dossier.status} />
           </span>
         </div>
 

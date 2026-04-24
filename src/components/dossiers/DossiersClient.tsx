@@ -4,17 +4,12 @@ import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useState } from "react";
 import { NewDossierModal } from "./NewDossierModal";
+import { StatusChip } from "@/components/ui/StatusChip";
 import type { DossierListItem } from "@/server/queries/dossiers";
 
 interface DossiersClientProps {
   dossiers: DossierListItem[];
 }
-
-const STATUS_LABEL: Record<string, string> = {
-  active: "Active",
-  archived: "Archived",
-  on_hold: "On hold",
-};
 
 export function DossiersClient({ dossiers }: DossiersClientProps) {
   const [modalOpen, setModalOpen] = useState(false);
@@ -127,27 +122,7 @@ export function DossiersClient({ dossiers }: DossiersClientProps) {
                   {dossier._count.sources} source
                   {dossier._count.sources !== 1 ? "s" : ""}
                 </span>
-                <span
-                  style={{
-                    fontFamily: "var(--font-mono)",
-                    fontSize: "0.6875rem",
-                    color:
-                      dossier.status === "active"
-                        ? "var(--color-accent-success)"
-                        : "var(--color-ink-secondary)",
-                    backgroundColor:
-                      dossier.status === "active"
-                        ? "rgba(45, 106, 79, 0.1)"
-                        : "var(--color-bg-selected)",
-                    padding: "0.125rem 0.5rem",
-                    borderRadius: "var(--radius-xs)",
-                    border: "var(--border-hairline) solid var(--color-border)",
-                    textTransform: "uppercase",
-                    letterSpacing: "0.06em",
-                  }}
-                >
-                  {STATUS_LABEL[dossier.status] ?? dossier.status}
-                </span>
+                <StatusChip status={dossier.status} />
               </div>
             </Link>
           ))}
